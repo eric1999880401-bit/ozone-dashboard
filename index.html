@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-Zone ED Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--panel:#151d2e;
+  --border:#1e2d45;--border2:#253552;
+  --accent:#00c2a8;--warn:#f5a623;--danger:#ff3b55;--success:#00c2a8;
+  --text:#e2e8f0;--text2:#8899b0;--text3:#4a5a72;
+  --zB:#3b82f6;--zD:#a855f7;--zE:#22c55e;--zA:#f97316;--zC:#ef4444;
+  --r:10px;--rs:6px;--sh:0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-badge{background:var(--accent);color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;padding:4px 10px;border-radius:5px;letter-spacing:1px}
+.logo-title{font-size:16px;font-weight:700}
+.logo-sub{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#clock{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);background:rgba(0,194,168,.08);padding:6px 12px;border-radius:var(--rs);border:1px solid rgba(0,194,168,.2)}
+.sync-pill{display:flex;align-items:center;gap:7px;padding:5px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:nowrap;user-select:none}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#444;flex-shrink:0;transition:all .3s}
+.sync-dot.online{background:var(--success);box-shadow:0 0 8px var(--success)}
+.sync-dot.offline{background:var(--warn);animation:pulse 1.5s infinite}
+.sync-dot.error{background:var(--danger)}
+.sync-dot.connecting{background:var(--warn);animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.btn{padding:7px 14px;border:none;border-radius:var(--rs);cursor:pointer;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover{background:#00dfc2}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}.btn-secondary:hover{background:var(--border2)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#ff5068}
+.btn-print{background:#0077ff;color:#fff}.btn-print:hover{background:#2288ff}
+.quota-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:12px;align-items:center}
+.quota-label{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+.quota-cards{display:flex;gap:10px;flex:1;flex-wrap:wrap}
+.quota-card{flex:1;min-width:100px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 14px;display:flex;align-items:center;gap:10px}
+.qzone{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;min-width:30px;text-align:center}
+.qzone.B{color:var(--zB)}.qzone.D{color:var(--zD)}.qzone.E{color:var(--zE)}.qzone.T{color:var(--text2)}
+.qinfo{flex:1}.qnums{display:flex;align-items:baseline;gap:4px;margin-bottom:4px}
+.qrem{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700}
+.qrem.ok{color:var(--success)}.qrem.mid{color:var(--warn)}.qrem.low{color:var(--danger)}
+.qslash{color:var(--text3);font-size:14px;font-family:'JetBrains Mono',monospace}
+.qtot{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text2)}
+.qtrack{height:4px;background:var(--bg);border-radius:99px;overflow:hidden}
+.qfill{height:100%;border-radius:99px;transition:width .3s ease}
+.qfill.B{background:var(--zB)}.qfill.D{background:var(--zD)}.qfill.E{background:var(--zE)}.qfill.T{background:var(--text2)}
+main{padding:16px 20px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.pcount{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);background:var(--bg3);padding:6px 12px;border-radius:var(--rs);border:1px solid var(--border)}
+.view-toggle{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
+.vbtn{padding:6px 12px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s}
+.vbtn.active{background:var(--accent);color:#000;font-weight:600}
+.twrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;white-space:nowrap}
+thead tr{background:var(--bg3);border-bottom:2px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text2);font-weight:500}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody tr:last-child{border-bottom:none}
+td{padding:9px 12px;vertical-align:middle;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.wc{white-space:normal;max-width:150px;line-height:1.4}
+.bed-tag{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);background:rgba(0,194,168,.1);padding:2px 8px;border-radius:4px;display:inline-block}
+.zbadge{display:inline-block;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700}
+.zbadge.A{background:rgba(249,115,22,.15);color:var(--zA);border:1px solid rgba(249,115,22,.3)}
+.zbadge.B{background:rgba(59,130,246,.15);color:var(--zB);border:1px solid rgba(59,130,246,.3)}
+.zbadge.C{background:rgba(239,68,68,.15);color:var(--zC);border:1px solid rgba(239,68,68,.3)}
+.zbadge.D{background:rgba(168,85,247,.15);color:var(--zD);border:1px solid rgba(168,85,247,.3)}
+.zbadge.E{background:rgba(34,197,94,.15);color:var(--zE);border:1px solid rgba(34,197,94,.3)}
+.admit-badge{background:rgba(0,119,255,.12);color:#60a5fa;border:1px solid rgba(0,119,255,.25);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.borrow-note{font-size:10px;color:var(--warn);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.abtn{padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;font-family:'Sora',sans-serif;transition:all .15s}
+.abtn-edit{background:rgba(0,119,255,.15);color:#60a5fa}.abtn-edit:hover{background:rgba(0,119,255,.3)}
+.abtn-del{background:rgba(255,59,85,.15);color:#ff3b55}.abtn-del:hover{background:rgba(255,59,85,.3)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.bed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.bed-card{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);padding:14px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.bed-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.bed-card.zA::before{background:var(--zA)}.bed-card.zB::before{background:var(--zB)}
+.bed-card.zC::before{background:var(--zC)}.bed-card.zD::before{background:var(--zD)}.bed-card.zE::before{background:var(--zE)}
+.bed-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:var(--sh)}
+.bc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.bc-name{font-size:15px;font-weight:600;margin-bottom:4px}
+.bc-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.mpill{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);background:var(--bg3);padding:2px 6px;border-radius:3px}
+.bc-cc{font-size:11px;color:var(--text2);line-height:1.5;max-height:42px;overflow:hidden}
+.bc-foot{display:flex;justify-content:space-between;margin-top:10px;align-items:center}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:740px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.modal.xs{max-width:400px}
+.mhead{padding:18px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1;border-radius:14px 14px 0 0}
+.mtitle{font-size:16px;font-weight:700}
+.mclose{background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;padding:2px 6px;border-radius:4px;transition:all .15s}
+.mclose:hover{background:var(--bg3);color:var(--text)}
+.mbody{padding:20px 22px}
+.mfoot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--bg2);border-radius:0 0 14px 14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg{display:flex;flex-direction:column;gap:6px}.fg.full{grid-column:1/-1}
+label{font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text2);font-weight:500}
+label .req{color:var(--danger);margin-left:2px}
+input,select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);padding:9px 12px;font-family:'Sora',sans-serif;font-size:13px;transition:border-color .15s;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,194,168,.1)}
+select option{background:var(--bg2)}
+textarea{resize:vertical;min-height:60px}
+.agesex{display:flex;gap:8px}.agesex input{flex:1}.agesex select{width:70px;flex-shrink:0}
+.confirm-body{padding:24px;text-align:center}
+.confirm-icon{font-size:40px;margin-bottom:10px}
+.confirm-title{font-size:17px;font-weight:700}
+.confirm-body p{color:var(--text2);margin-top:8px;font-size:13px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+/* ═══ PRINT — single copy fix ═══ */
+@media print {
+  body > *:not(#print-area){display:none !important}
+  #print-area{display:block !important;position:static !important;width:100% !important;margin:0 !important;padding:12px !important;background:white !important;color:black !important;font-family:Arial,sans-serif !important;font-size:11px !important}
+  @page{margin:12mm;size:A4 landscape}
+  .print-header{text-align:center;margin-bottom:10px}
+  .print-header h1{font-size:15px;font-weight:bold}
+  .print-header p{font-size:10px;color:#555}
+  .print-quota{display:flex;gap:24px;justify-content:center;margin-bottom:10px;font-size:11px;font-weight:bold}
+  .print-table{width:100%;border-collapse:collapse;font-size:9.5px}
+  .print-table th{background:#222;color:white;padding:5px 6px;text-align:left;font-size:9px;text-transform:uppercase}
+  .print-table td{border:1px solid #ddd;padding:4px 6px;vertical-align:top;word-break:break-word;white-space:pre-wrap}
+  .print-table tr:nth-child(even) td{background:#f7f7f7}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-badge">O-ZONE</div>
+    <div>
+      <div class="logo-title">ED Observation Ward</div>
+      <div class="logo-sub">Patient Tracking System</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div id="clock">--:--:--</div>
+    <div class="sync-pill">
+      <div class="sync-dot connecting" id="sync-dot"></div>
+      <span id="sync-label">Connecting…</span>
+    </div>
+    
+    <input type="file" id="file-import" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleExcelImport(event)">
+    
+    <button class="btn btn-secondary" onclick="openArchiveModal()">📜 History</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('file-import').click()">📥 Import</button>
+    <button class="btn btn-secondary" onclick="exportExcel()">📤 Export</button>
+    
+    <button class="btn btn-print" onclick="printHandover()">🖨 Print</button>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ Add Patient</button>
+  </div>
+</header>
+
+<div class="quota-bar">
+  <span class="quota-label">Quota</span>
+  <div class="quota-cards">
+    <div class="quota-card"><div class="qzone B">B</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qB">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill B" id="qfB" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone D">D</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qD">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill D" id="qfD" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone E">E</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qE">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill E" id="qfE" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone T">TOT</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qT">24</span><span class="qslash">/</span><span class="qtot">24</span></div><div class="qtrack"><div class="qfill T" id="qfT" style="width:100%"></div></div></div></div>
+  </div>
+</div>
+
+<main>
+  <div class="toolbar">
+    <span class="pcount" id="pcount">0 patients</span>
+    <div class="view-toggle">
+      <button class="vbtn active" id="vt" onclick="setView('table')">≡ Table</button>
+      <button class="vbtn" id="vg" onclick="setView('grid')">⊞ Grid</button>
+    </div>
+  </div>
+  <div id="tv">
+    <div class="twrap">
+      <table>
+        <thead><tr><th>Bed</th><th>Zone</th><th>Name</th><th>Age/Sex</th><th>Chart #</th><th>CC</th><th>PMH</th><th>Impression</th><th>Treatment</th><th>Notes</th><th>Admit To</th><th>Actions</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="gv" style="display:none"><div class="bed-grid" id="bgrid"></div></div>
+</main>
+
+<div id="print-area" style="display:none">
+  <div class="print-header"><h1>O-Zone Observation Ward — Handover Sheet</h1><p id="pt-time"></p></div>
+  <div class="print-quota" id="pt-quota"></div>
+  <table class="print-table">
+    <thead><tr><th>Bed</th><th>Zone</th><th>Age/Sex</th><th>Chart #</th><th>CC</th><th>PMH</th><th>Impression</th><th>Treatment</th><th>Notes</th><th>Admit To</th></tr></thead>
+    <tbody id="pt-body"></tbody>
+  </table>
+</div>
+
+<div class="overlay" id="pm">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="pm-title">Add Patient</div><button class="mclose" onclick="closeModal('pm')">✕</button></div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg">
+          <label>Bed # <span class="req">*</span></label>
+          <select id="f-bed" onchange="onBedChange()"></select>
+          <input type="text" id="f-bed-custom" placeholder="Custom bed # (if not listed)" style="margin-top:6px">
+        </div>
+        <div class="fg">
+          <label>Origin Zone <span class="req">*</span></label>
+          <select id="f-zone" onchange="onZoneChange()">
+            <option value="">— Select Zone —</option>
+            <option value="A">A — Trauma</option>
+            <option value="B">B — Internal Medicine</option>
+            <option value="C">C — Critical</option>
+            <option value="D">D — Internal Medicine</option>
+            <option value="E">E — Internal Medicine</option>
+          </select>
+        </div>
+        <div class="fg"><label>Name <span class="req">*</span></label><input type="text" id="f-name" placeholder="Patient name"></div>
+        <div class="fg">
+          <label id="lbl-borrow">Borrow Quota From</label>
+          <select id="f-borrow">
+            <option value="">— None (Use own quota) —</option>
+            <option value="B">Borrow from Zone B</option>
+            <option value="D">Borrow from Zone D</option>
+            <option value="E">Borrow from Zone E</option>
+          </select>
+        </div>
+        <div class="fg"><label>Age / Sex</label><div class="agesex"><input type="number" id="f-age" placeholder="Age" min="0" max="130"><select id="f-sex"><option value="">Sex</option><option value="M">M</option><option value="F">F</option></select></div></div>
+        <div class="fg"><label>Chart Number</label><input type="text" id="f-chart" placeholder="e.g. 26372450"></div>
+        <div class="fg full">
+          <label>Admit To</label>
+          <input type="text" id="f-admit" list="spec-list" placeholder="e.g. Nephro, GI, Neuro...">
+          <datalist id="spec-list">
+            <option value="Cardio"><option value="Nephro"><option value="GI"><option value="Neuro">
+            <option value="Hema"><option value="GU"><option value="Pulm"><option value="Endo">
+            <option value="ID"><option value="CV"><option value="Ortho"><option value="Surgery">
+            <option value="Derm"><option value="Rheum"><option value="Psych"><option value="OB">
+            <option value="Peds"><option value="Onco"><option value="Ophth"><option value="ENT">
+            <option value="Plastics"><option value="Uro">
+          </datalist>
+        </div>
+        <div class="fg full"><label>Chief Complaint</label><textarea id="f-cc" placeholder="Main presenting complaint..."></textarea></div>
+        <div class="fg full"><label>Past Medical History (PMH)</label><textarea id="f-pmh" placeholder="Relevant past medical history..."></textarea></div>
+        <div class="fg full"><label>Impression / Diagnosis</label><textarea id="f-impression" placeholder="Working diagnosis..."></textarea></div>
+        <div class="fg full"><label>Treatment / Plan</label><textarea id="f-tx" placeholder="Current treatment plan..."></textarea></div>
+        <div class="fg full"><label>Notes / Remarks</label><textarea id="f-notes" placeholder="Additional notes..."></textarea></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-secondary" onclick="closeModal('pm')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePatient()">Save Patient</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="cdm">
+  <div class="modal xs">
+    <div class="mhead"><div class="mtitle">Discharge / Remove</div><button class="mclose" onclick="closeModal('cdm')">✕</button></div>
+    <div class="confirm-body">
+      <div class="confirm-icon">📦</div>
+      <div class="confirm-title">Archive Patient?</div>
+      <p id="cdm-msg"></p>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-secondary" onclick="closeModal('cdm')">Cancel</button>
+      <button class="btn btn-danger" id="cdm-ok">Remove & Archive</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="am">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle">📜 Patient History (Recently Removed)</div><button class="mclose" onclick="closeModal('am')">✕</button></div>
+    <div class="mbody" style="max-height: 50vh; overflow-y: auto; padding: 0;">
+      <table style="width:100%; border-collapse:collapse; white-space:nowrap;">
+        <thead style="position:sticky; top:0; background:var(--bg3); z-index:2;">
+          <tr>
+            <th style="padding:10px 14px; text-align:left; border-bottom:1px solid var(--border)">Name</th>
+            <th style="padding:10px 14px; text-align:left; border-bottom:1px solid var(--border)">Chart #</th>
+            <th style="padding:10px 14px; text-align:left; border-bottom:1px solid var(--border)">Time Archived</th>
+            <th style="padding:10px 14px; text-align:right; border-bottom:1px solid var(--border)">Action</th>
+          </tr>
+        </thead>
+        <tbody id="archive-body"></tbody>
+      </table>
+      <div id="archive-loading" style="text-align:center; padding: 30px; color: var(--text2); font-size: 13px;">Loading history...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════
+const FIREBASE_URL = 'https://ozone-ed-default-rtdb.firebaseio.com';
+let patients = [], editingId = null, deleteTargetId = null, currentView = 'table';
+let fbRef = null;
+let fbArchiveRef = null; // 新增歷史紀錄參照
+const QUOTA = {B:8, D:8, E:8};
+
+function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}
+function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
+
+function initFirebase(){
+  try{
+    firebase.initializeApp({databaseURL: FIREBASE_URL});
+    fbRef = firebase.database().ref('ozone_patients');
+    fbArchiveRef = firebase.database().ref('ozone_archive'); // 初始化歸檔區
+
+    fbRef.on('child_added', snap => {
+      const p = snap.val();
+      if(!patients.find(x => x.id === p.id)) { patients.push(p); lsSet('ozone_patients', patients); render(); }
+    });
+
+    fbRef.on('child_changed', snap => {
+      const p = snap.val();
+      const idx = patients.findIndex(x => x.id === p.id);
+      if(idx > -1) { patients[idx] = p; lsSet('ozone_patients', patients); render(); }
+    });
+
+    fbRef.on('child_removed', snap => {
+      patients = patients.filter(x => x.id !== snap.key);
+      lsSet('ozone_patients', patients); render();
+    });
+
+    firebase.database().ref('.info/connected').on('value', snap => {
+      setSyncStatus(snap.val() ? 'online' : 'offline');
+    });
+
+  } catch(e){
+    console.error('Firebase error:', e);
+    setSyncStatus('error');
+    patients = lsGet('ozone_patients') || [];
+    render();
+  }
+}
+
+function setSyncStatus(s){
+  document.getElementById('sync-dot').className = 'sync-dot ' + s;
+  const m = {online:'☁ Synced', offline:'☁ Reconnecting…', error:'☁ Error — check network', connecting:'☁ Connecting…'};
+  document.getElementById('sync-label').textContent = m[s] || s;
+}
+
+// ══════════════════════════════════════
+// HISTORY / ARCHIVE (歷史紀錄與復原)
+// ══════════════════════════════════════
+function openArchiveModal() {
+  openModal('am');
+  const tbody = document.getElementById('archive-body');
+  const loader = document.getElementById('archive-loading');
+  tbody.innerHTML = '';
+  loader.style.display = 'block';
+
+  // 斷線時的本地讀取
+  if(!fbArchiveRef) {
+    const arr = lsGet('ozone_archive') || [];
+    renderArchive(arr);
+    return;
+  }
+
+  // 使用 .once() 按需加載，不會持續佔用流量
+  fbArchiveRef.once('value').then(snap => {
+    const data = snap.val();
+    const arr = data ? Object.values(data) : [];
+    renderArchive(arr);
+  }).catch(err => {
+    loader.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color:var(--danger)">Failed to load history.</td></tr>';
+  });
+}
+
+function renderArchive(arr) {
+  const tbody = document.getElementById('archive-body');
+  const loader = document.getElementById('archive-loading');
+  loader.style.display = 'none';
+
+  if(arr.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text2)">No recently discharged patients found.</td></tr>';
+    return;
+  }
+
+  // 依據歸檔時間由新到舊排序
+  arr.sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+
+  tbody.innerHTML = arr.map(p => {
+    const d = new Date(p.archivedAt || Date.now());
+    const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px"><strong>${p.name}</strong></td>
+      <td style="padding:10px 14px; font-family:'JetBrains Mono',monospace">${p.chart||'—'}</td>
+      <td style="padding:10px 14px; color:var(--text2); font-size:11px">${dateStr}</td>
+      <td style="padding:10px 14px; text-align:right;"><button class="abtn abtn-edit" onclick="restorePatient('${p.id}')">↩ Restore</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function restorePatient(id) {
+  if(!fbArchiveRef) {
+    let archive = lsGet('ozone_archive') || [];
+    const p = archive.find(x => x.id === id);
+    if(p) {
+      archive = archive.filter(x => x.id !== id);
+      lsSet('ozone_archive', archive);
+      patients.push(p);
+      lsSet('ozone_patients', patients);
+      render(); openArchiveModal();
+    }
+    return;
+  }
+
+  // 從歷史區抓出資料 -> 移回活動區 -> 刪除歷史區紀錄
+  fbArchiveRef.child(id).once('value').then(snap => {
+    const p = snap.val();
+    if(p) {
+      p.archivedAt = null; 
+      return fbRef.child(id).set(p).then(() => fbArchiveRef.child(id).remove());
+    }
+  }).then(() => {
+    openArchiveModal(); // 重新整理列表
+  }).catch(err => alert('Restore failed. Check network.'));
+}
+
+// ══════════════════════════════════════
+// EXCEL IMPORT & EXPORT
+// ══════════════════════════════════════
+function exportExcel() {
+  if(!patients.length) { alert('No patient data to export.'); return; }
+  const data = sorted().map(p => ({
+    'Bed': p.bed, 'Zone': p.zone, 'Name': p.name, 'Age': p.age, 'Sex': p.sex,
+    'Chart #': p.chart, 'CC': p.cc, 'PMH': p.pmh, 'Impression': p.impression,
+    'Treatment': p.tx, 'Notes': p.notes, 'Admit To': p.admit, 'Borrow Zone': p.borrowZone || ''
+  }));
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "O-Zone Patients");
+  XLSX.writeFile(workbook, `OZone_Handover_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function handleExcelImport(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = evt.target.result;
+      const workbook = XLSX.read(data, {type: 'binary'});
+      const firstSheetName = workbook.SheetNames[0];
+      const excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[firstSheetName]);
+      processImportedData(excelRows);
+    } catch (err) { alert('Failed to parse Excel file.'); }
+  };
+  reader.readAsBinaryString(file); e.target.value = '';
+}
+
+function processImportedData(rows) {
+  let importedCount = 0;
+  rows.forEach(r => {
+    const getVal = (possibleKeys) => {
+      for (let key in r) { if (possibleKeys.includes(key.toLowerCase().trim())) return String(r[key]).trim(); }
+      return '';
+    };
+    const name = getVal(['name', '姓名', '病人姓名', 'patient name']); if (!name) return;
+    const p = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      bed: getVal(['bed', '床號', 'bed #']) || '', zone: getVal(['zone', '區', '區域']) || 'B',
+      name: name, age: getVal(['age', '年紀', '年齡']) || '', sex: getVal(['sex', 'gender', '性別']) || '',
+      chart: getVal(['chart', 'chart #', '病歷號', 'chart no']) || '',
+      cc: getVal(['cc', 'chief complaint', '主訴']) || '', pmh: getVal(['pmh', 'past history', '過去病史', 'history']) || '',
+      impression: getVal(['impression', 'diagnosis', '診斷', 'imp']) || '',
+      tx: getVal(['treatment', 'tx', 'plan', '處置', '計畫']) || '',
+      notes: getVal(['notes', '備註', 'remarks']) || '', admit: getVal(['admit to', 'admit', '住院科別', 'admission']) || '',
+      borrowZone: getVal(['borrow zone', '借區', 'borrow']) || null, createdAt: Date.now()
+    };
+    if (fbRef) fbRef.child(p.id).set(p); else patients.push(p); 
+    importedCount++;
+  });
+  if (!fbRef) { lsSet('ozone_patients', patients); render(); }
+  if (importedCount > 0) alert(`Successfully imported ${importedCount} patients.`);
+}
+
+// ══════════════════════════════════════
+// QUOTA, RENDER & UI LOGIC
+// ══════════════════════════════════════
+function calcQuota(){
+  const u={B:0,D:0,E:0};
+  patients.forEach(p=>{const z=p.borrowZone||p.zone;if(u[z]!==undefined)u[z]++;});
+  return{B:QUOTA.B-u.B, D:QUOTA.D-u.D, E:QUOTA.E-u.E, T:24-patients.length};
+}
+function renderQuota(){
+  const q=calcQuota();
+  ['B','D','E'].forEach(z=>{
+    const r=q[z],el=document.getElementById('q'+z);
+    el.textContent=r; el.className='qrem '+(r>=5?'ok':r>=2?'mid':'low');
+    document.getElementById('qf'+z).style.width=(r/QUOTA[z]*100)+'%';
+  });
+  const t=q.T,tel=document.getElementById('qT');
+  tel.textContent=t; tel.className='qrem '+(t>=10?'ok':t>=5?'mid':'low');
+  document.getElementById('qfT').style.width=(t/24*100)+'%';
+}
+
+const ageSex = p => (p.age||p.sex) ? `${p.age||'?'}${p.sex||'?'}` : '—';
+const bedNum  = p => parseInt(p.bed)||999;
+const sorted  = () => [...patients].sort((a,b)=>bedNum(a)-bedNum(b));
+
+function renderTable(){
+  const s=sorted(), tbody=document.getElementById('tbody');
+  if(!s.length){ tbody.innerHTML='<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🛏</div><p>No patients. Click <strong>+ Add Patient</strong> or <strong>Import</strong> to begin.</p></div></td></tr>'; return; }
+  tbody.innerHTML=s.map(p=>{
+    const br=p.borrowZone?`<div class="borrow-note">↩${p.borrowZone}</div>`:'';
+    return`<tr onclick="openEditModal('${p.id}')">
+      <td><span class="bed-tag">${p.bed}</span></td>
+      <td><span class="zbadge ${p.zone}">${p.zone}</span>${br}</td>
+      <td><strong>${p.name}</strong></td>
+      <td style="font-family:'JetBrains Mono',monospace">${ageSex(p)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--text2)">${p.chart||'—'}</td>
+      <td class="wc">${p.cc||'—'}</td>
+      <td class="wc">${p.pmh||'—'}</td>
+      <td class="wc">${p.impression||'—'}</td>
+      <td class="wc">${p.tx||'—'}</td>
+      <td class="wc">${p.notes||'—'}</td>
+      <td>${p.admit?`<span class="admit-badge">${p.admit}</span>`:'—'}</td>
+      <td onclick="event.stopPropagation()"><div style="display:flex;gap:6px">
+        <button class="abtn abtn-edit" onclick="openEditModal('${p.id}')">Edit</button>
+        <button class="abtn abtn-del" onclick="confirmDelete('${p.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderGrid(){
+  const s=sorted(), g=document.getElementById('bgrid');
+  if(!s.length){g.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🛏</div><p>No patients yet.</p></div>';return;}
+  g.innerHTML=s.map(p=>{
+    const br=p.borrowZone?`<span class="mpill" style="color:var(--warn)">↩${p.borrowZone}</span>`:'';
+    return`<div class="bed-card z${p.zone}" onclick="openEditModal('${p.id}')">
+      <div class="bc-head"><span class="bed-tag">Bed ${p.bed}</span><span class="zbadge ${p.zone}">${p.zone}</span></div>
+      <div class="bc-name">${p.name}</div>
+      <div class="bc-meta"><span class="mpill">${ageSex(p)}</span>${p.chart?`<span class="mpill">${p.chart}</span>`:''}${br}</div>
+      <div class="bc-cc">${p.cc||'<em style="color:var(--text3)">No CC entered</em>'}</div>
+      ${p.admit?`<div style="margin-top:8px"><span class="admit-badge">${p.admit}</span></div>`:''}
+      <div class="bc-foot" onclick="event.stopPropagation()">
+        <button class="abtn abtn-edit" onclick="openEditModal('${p.id}')">Edit</button>
+        <button class="abtn abtn-del" onclick="confirmDelete('${p.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render(){
+  renderQuota(); renderTable(); renderGrid();
+  document.getElementById('pcount').textContent=`${patients.length} patient${patients.length!==1?'s':''}`;
+}
+
+const openModal  = id => document.getElementById(id).classList.add('open');
+const closeModal = id => document.getElementById(id).classList.remove('open');
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');}));
+
+function populateBedSelect(){
+  const sel=document.getElementById('f-bed');
+  const used=new Set(patients.filter(p=>p.id!==editingId).map(p=>p.bed));
+  sel.innerHTML='<option value="">— Select bed # —</option>';
+  for(let i=1;i<=24;i++){
+    const s=String(i),opt=document.createElement('option');
+    opt.value=s; opt.textContent=`Bed ${s}`;
+    if(used.has(s)){opt.disabled=true; opt.textContent+=' (occupied)';}
+    sel.appendChild(opt);
+  }
+}
+function clearForm(){
+  ['f-bed','f-zone','f-sex','f-borrow'].forEach(id=>document.getElementById(id).value='');
+  ['f-bed-custom','f-name','f-chart','f-admit','f-cc','f-pmh','f-impression','f-tx','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-age').value='';
+  document.getElementById('f-bed-custom').style.display='';
+  document.getElementById('lbl-borrow').innerHTML='Borrow Quota From';
+}
+function openAddModal(){
+  editingId=null; document.getElementById('pm-title').textContent='Add Patient';
+  clearForm(); populateBedSelect(); openModal('pm');
+  setTimeout(()=>document.getElementById('f-bed').focus(),100);
+}
+function openEditModal(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  editingId=id; document.getElementById('pm-title').textContent='Edit Patient';
+  populateBedSelect();
+  const isNum=/^\d+$/.test(p.bed);
+  document.getElementById('f-bed').value=isNum?p.bed:'';
+  document.getElementById('f-bed-custom').value=isNum?'':p.bed;
+  document.getElementById('f-bed-custom').style.display=isNum?'none':'';
+  document.getElementById('f-zone').value=p.zone;
+  document.getElementById('f-name').value=p.name;
+  document.getElementById('f-age').value=p.age||'';
+  document.getElementById('f-sex').value=p.sex||'';
+  document.getElementById('f-chart').value=p.chart||'';
+  document.getElementById('f-admit').value=p.admit||'';
+  document.getElementById('f-cc').value=p.cc||'';
+  document.getElementById('f-pmh').value=p.pmh||'';
+  document.getElementById('f-impression').value=p.impression||'';
+  document.getElementById('f-tx').value=p.tx||'';
+  document.getElementById('f-notes').value=p.notes||'';
+  document.getElementById('f-borrow').value=p.borrowZone||'';
+  onZoneChange(); openModal('pm');
+}
+function onBedChange(){ document.getElementById('f-bed-custom').style.display=document.getElementById('f-bed').value?'none':''; }
+function onZoneChange(){
+  const z=document.getElementById('f-zone').value; const lbl=document.getElementById('lbl-borrow');
+  if(z==='A'||z==='C'){ lbl.innerHTML='Borrow Quota From <span class="req">*</span>'; } else { lbl.innerHTML='Borrow Quota From'; }
+}
+
+function savePatient(){
+  const bedSel=document.getElementById('f-bed').value; const bedCustom=document.getElementById('f-bed-custom').value.trim();
+  const bed=bedSel||bedCustom; const zone=document.getElementById('f-zone').value;
+  const name=document.getElementById('f-name').value.trim(); const borrow=document.getElementById('f-borrow').value;
+  
+  if(!bed){alert('Please select or enter a bed number.');return;}
+  if(!zone){alert('Please select an origin zone.');return;}
+  if(!name){alert('Please enter patient name.');return;}
+  if((zone==='A'||zone==='C')&&!borrow){ alert('Zone A / C patients must borrow quota. Please select a zone to borrow from.'); return; }
+  if(borrow && borrow === zone){ alert('Cannot borrow quota from the same zone you are in!'); return; }
+  
+  const targetZone=borrow ? borrow : zone;
+  if(!editingId){
+    const q=calcQuota();
+    if(q[targetZone]!==undefined&&q[targetZone]<=0){alert(`Zone ${targetZone} has no remaining quota!`);return;}
+  }
+  
+  const p={
+    id: editingId||Date.now().toString() + Math.random().toString(36).substr(2, 5),
+    bed, zone, name, age: document.getElementById('f-age').value.trim(), sex: document.getElementById('f-sex').value,
+    chart:document.getElementById('f-chart').value.trim(), admit:document.getElementById('f-admit').value.trim(),
+    cc: document.getElementById('f-cc').value.trim(), pmh: document.getElementById('f-pmh').value.trim(),
+    impression:document.getElementById('f-impression').value.trim(), tx: document.getElementById('f-tx').value.trim(),
+    notes:document.getElementById('f-notes').value.trim(), borrowZone: borrow || null,
+    createdAt:editingId?(patients.find(x=>x.id===editingId)?.createdAt||Date.now()):Date.now()
+  };
+
+  if(!fbRef) {
+    if(editingId){const i=patients.findIndex(x=>x.id===editingId);patients[i]=p;}
+    else patients.push(p);
+    lsSet('ozone_patients', patients); render(); closeModal('pm'); return;
+  }
+
+  fbRef.child(p.id).set(p).then(() => closeModal('pm')).catch(err => {
+      console.error(err); alert('儲存失敗，請檢查網路連線！'); setSyncStatus('error');
+  });
+}
+
+function confirmDelete(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  deleteTargetId=id;
+  document.getElementById('cdm-msg').textContent=`Archive ${p.name} (Bed ${p.bed})? You can restore them from the History log later.`;
+  document.getElementById('cdm-ok').onclick=()=>{
+    p.archivedAt = Date.now(); // 加上歸檔時間戳記
+
+    if(!fbRef) { 
+      let archive = lsGet('ozone_archive') || []; archive.push(p); lsSet('ozone_archive', archive);
+      patients=patients.filter(x=>x.id!==deleteTargetId); lsSet('ozone_patients', patients); 
+      render(); closeModal('cdm'); return; 
+    }
+
+    // 將資料搬移到 archive 節點，然後從 active 節點刪除
+    fbArchiveRef.child(p.id).set(p).then(() => {
+      return fbRef.child(p.id).remove();
+    }).then(() => closeModal('cdm')).catch(err => { 
+      console.error(err); alert('歸檔失敗，請檢查網路！'); 
+    });
+  };
+  openModal('cdm');
+}
+
+function setView(v){
+  currentView=v; document.getElementById('tv').style.display=v==='table'?'':'none'; document.getElementById('gv').style.display=v==='grid'?'':'none';
+  document.getElementById('vt').classList.toggle('active',v==='table'); document.getElementById('vg').classList.toggle('active',v==='grid');
+}
+
+function printHandover(){
+  const s=sorted();
+  const now=new Date().toLocaleString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const q=calcQuota(); document.getElementById('pt-time').textContent='Printed: '+now;
+  document.getElementById('pt-quota').innerHTML= `<span>Zone B: ${q.B}/8</span><span>Zone D: ${q.D}/8</span><span>Zone E: ${q.E}/8</span><span>Total: ${q.T}/24</span>`;
+  document.getElementById('pt-body').innerHTML=s.map(p=>`
+    <tr><td>${p.bed}</td><td>${p.zone}${p.borrowZone?' (→'+p.borrowZone+')':''}</td><td>${ageSex(p)}</td><td>${p.chart||''}</td><td>${p.cc||''}</td><td>${p.pmh||''}</td><td>${p.impression||''}</td><td>${p.tx||''}</td><td>${p.notes||''}</td><td>${p.admit||''}</td></tr>`).join('');
+  const pa=document.getElementById('print-area'); pa.style.display='block'; window.print(); pa.style.display='none';
+}
+
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false}); },1000);
+document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false});
+
+initFirebase();
+
+// ══════════════════════════════════════
+// CONNECTION MANAGEMENT 
+// ══════════════════════════════════════
+document.addEventListener("visibilitychange", function() {
+  if (!fbRef) return;
+  if (document.hidden) firebase.database().goOffline();
+  else firebase.database().goOnline();
+});
+</script>
+</body>
+</html>
