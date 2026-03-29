@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-Zone ED Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--panel:#151d2e;
+  --border:#1e2d45;--border2:#253552;
+  --accent:#00c2a8;--warn:#f5a623;--danger:#ff3b55;--success:#00c2a8;
+  --text:#e2e8f0;--text2:#8899b0;--text3:#4a5a72;
+  --zB:#3b82f6;--zD:#a855f7;--zE:#22c55e;--zA:#f97316;--zC:#ef4444;
+  --r:10px;--rs:6px;--sh:0 4px 24px rgba(0,0,0,.4);
+  --print-scale:0.92;
+  --print-font:8.8px;
+  --print-th-font:8.2px;
+  --print-cell-py:4px;
+  --print-cell-px:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-badge{background:var(--accent);color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;padding:4px 10px;border-radius:5px;letter-spacing:1px}
+.logo-title{font-size:16px;font-weight:700}
+.logo-sub{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#clock{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);background:rgba(0,194,168,.08);padding:6px 12px;border-radius:var(--rs);border:1px solid rgba(0,194,168,.2)}
+.sync-pill{display:flex;align-items:center;gap:7px;padding:5px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:nowrap;user-select:none}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#444;flex-shrink:0;transition:all .3s}
+.sync-dot.online{background:var(--success);box-shadow:0 0 8px var(--success)}
+.sync-dot.offline{background:var(--warn);animation:pulse 1.5s infinite}
+.sync-dot.error{background:var(--danger)}
+.sync-dot.connecting{background:var(--warn);animation:pulse .8s infinite}
+.sync-dot.paused{background:#8b9dbd}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.btn{padding:7px 14px;border:none;border-radius:var(--rs);cursor:pointer;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover{background:#00dfc2}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}.btn-secondary:hover{background:var(--border2)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#ff5068}
+.btn-print{background:#0077ff;color:#fff}.btn-print:hover{background:#2288ff}
+.ctrl-select{background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:7px 10px;border-radius:var(--rs);font-size:12px;min-width:110px}
+.ctrl-inline{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border2);padding:6px 10px;border-radius:var(--rs)}
+.ctrl-inline label{font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:var(--text2)}
+.ctrl-range{accent-color:var(--accent);width:110px}
+.ctrl-value{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);min-width:42px;text-align:right}
+.quota-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:12px;align-items:center}
+.quota-label{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+.quota-cards{display:flex;gap:10px;flex:1;flex-wrap:wrap}
+.quota-card{flex:1;min-width:100px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 14px;display:flex;align-items:center;gap:10px}
+.qzone{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;min-width:30px;text-align:center}
+.qzone.B{color:var(--zB)}.qzone.D{color:var(--zD)}.qzone.E{color:var(--zE)}.qzone.T{color:var(--text2)}
+.qinfo{flex:1}.qnums{display:flex;align-items:baseline;gap:4px;margin-bottom:4px}
+.qrem{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700}
+.qrem.ok{color:var(--success)}.qrem.mid{color:var(--warn)}.qrem.low{color:var(--danger)}
+.qslash{color:var(--text3);font-size:14px;font-family:'JetBrains Mono',monospace}
+.qtot{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text2)}
+.qtrack{height:4px;background:var(--bg);border-radius:99px;overflow:hidden}
+.qfill{height:100%;border-radius:99px;transition:width .3s ease}
+.qfill.B{background:var(--zB)}.qfill.D{background:var(--zD)}.qfill.E{background:var(--zE)}.qfill.T{background:var(--text2)}
+main{padding:16px 20px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pcount{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);background:var(--bg3);padding:6px 12px;border-radius:var(--rs);border:1px solid var(--border)}
+.view-toggle{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
+.vbtn{padding:6px 12px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s}
+.vbtn.active{background:var(--accent);color:#000;font-weight:600}
+.print-note{font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:var(--rs)}
+.twrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;white-space:nowrap}
+thead tr{background:var(--bg3);border-bottom:2px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text2);font-weight:500}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody tr:last-child{border-bottom:none}
+td{padding:9px 12px;vertical-align:middle;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.wc{white-space:normal;max-width:150px;line-height:1.4}
+.bed-tag{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);background:rgba(0,194,168,.1);padding:2px 8px;border-radius:4px;display:inline-block}
+.zbadge{display:inline-block;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700}
+.zbadge.A{background:rgba(249,115,22,.15);color:var(--zA);border:1px solid rgba(249,115,22,.3)}
+.zbadge.B{background:rgba(59,130,246,.15);color:var(--zB);border:1px solid rgba(59,130,246,.3)}
+.zbadge.C{background:rgba(239,68,68,.15);color:var(--zC);border:1px solid rgba(239,68,68,.3)}
+.zbadge.D{background:rgba(168,85,247,.15);color:var(--zD);border:1px solid rgba(168,85,247,.3)}
+.zbadge.E{background:rgba(34,197,94,.15);color:var(--zE);border:1px solid rgba(34,197,94,.3)}
+.admit-badge{background:rgba(0,119,255,.12);color:#60a5fa;border:1px solid rgba(0,119,255,.25);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.borrow-note{font-size:10px;color:var(--warn);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.abtn{padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;font-family:'Sora',sans-serif;transition:all .15s}
+.abtn-edit{background:rgba(0,119,255,.15);color:#60a5fa}.abtn-edit:hover{background:rgba(0,119,255,.3)}
+.abtn-del{background:rgba(255,59,85,.15);color:#ff3b55}.abtn-del:hover{background:rgba(255,59,85,.3)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.bed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.bed-card{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);padding:14px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.bed-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.bed-card.zA::before{background:var(--zA)}.bed-card.zB::before{background:var(--zB)}
+.bed-card.zC::before{background:var(--zC)}.bed-card.zD::before{background:var(--zD)}.bed-card.zE::before{background:var(--zE)}
+.bed-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:var(--sh)}
+.bc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.bc-name{font-size:15px;font-weight:600;margin-bottom:4px}
+.bc-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.mpill{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);background:var(--bg3);padding:2px 6px;border-radius:3px}
+.bc-cc{font-size:11px;color:var(--text2);line-height:1.5;max-height:42px;overflow:hidden}
+.bc-foot{display:flex;justify-content:space-between;margin-top:10px;align-items:center}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:740px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.modal.xs{max-width:400px}
+.mhead{padding:18px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1;border-radius:14px 14px 0 0}
+.mtitle{font-size:16px;font-weight:700}
+.mclose{background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;padding:2px 6px;border-radius:4px;transition:all .15s}
+.mclose:hover{background:var(--bg3);color:var(--text)}
+.mbody{padding:20px 22px}
+.mfoot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--bg2);border-radius:0 0 14px 14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg{display:flex;flex-direction:column;gap:6px}.fg.full{grid-column:1/-1}
+label{font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text2);font-weight:500}
+label .req{color:var(--danger);margin-left:2px}
+input,select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);padding:9px 12px;font-family:'Sora',sans-serif;font-size:13px;transition:border-color .15s;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,194,168,.1)}
+select option{background:var(--bg2)}
+textarea{resize:vertical;min-height:60px}
+.agesex{display:flex;gap:8px}.agesex input{flex:1}.agesex select{width:70px;flex-shrink:0}
+.confirm-body{padding:24px;text-align:center}
+.confirm-icon{font-size:40px;margin-bottom:10px}
+.confirm-title{font-size:17px;font-weight:700}
+.confirm-body p{color:var(--text2);margin-top:8px;font-size:13px}
+.print-sheet{background:#fff;color:#000;padding:12px;transform-origin:top left}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+@media (max-width: 1100px){
+  .toolbar{align-items:flex-start}
+  .toolbar-right{width:100%}
+  .ctrl-inline{flex-wrap:wrap}
+}
+@media (max-width: 820px){
+  .fgrid{grid-template-columns:1fr}
+  .quota-bar{flex-direction:column;align-items:stretch}
+  .quota-cards{width:100%}
+}
+
+/* PRINT */
+@media print {
+  body > *:not(#print-area){display:none !important}
+  #print-area{display:block !important;position:static !important;width:100% !important;margin:0 !important;padding:0 !important;background:white !important;color:black !important;font-family:Arial,sans-serif !important;font-size:11px !important;overflow:visible !important}
+  @page{margin:10mm;size:A4 landscape}
+  .print-sheet{width:calc(100% / var(--print-scale));transform:scale(var(--print-scale))}
+  .print-header{text-align:center;margin-bottom:10px}
+  .print-header h1{font-size:15px;font-weight:bold}
+  .print-header p{font-size:10px;color:#555}
+  .print-quota{display:flex;gap:24px;justify-content:center;margin-bottom:10px;font-size:11px;font-weight:bold;flex-wrap:wrap}
+  .print-table{width:100%;border-collapse:collapse;font-size:var(--print-font)}
+  .print-table th{background:#222;color:white;padding:5px 6px;text-align:left;font-size:var(--print-th-font);text-transform:uppercase}
+  .print-table td{border:1px solid #ddd;padding:var(--print-cell-py) var(--print-cell-px);vertical-align:top;word-break:break-word;white-space:pre-wrap;line-height:1.25}
+  .print-table tr:nth-child(even) td{background:#f7f7f7}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-badge">O-ZONE</div>
+    <div>
+      <div class="logo-title" data-i18n="appTitle">ED Observation Ward</div>
+      <div class="logo-sub" data-i18n="appSubtitle">Patient Tracking System</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <select class="ctrl-select" id="lang-switch" onchange="setLanguage(this.value)">
+      <option value="en">English</option>
+      <option value="zh">繁體中文</option>
+    </select>
+
+    <div id="clock">--:--:--</div>
+    <div class="sync-pill">
+      <div class="sync-dot connecting" id="sync-dot"></div>
+      <span id="sync-label">Connecting…</span>
+    </div>
+
+    <input type="file" id="file-import" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleExcelImport(event)">
+
+    <button class="btn btn-secondary" onclick="openArchiveModal()"><span>📜</span><span data-i18n="history">History</span></button>
+    <button class="btn btn-secondary" onclick="document.getElementById('file-import').click()"><span>📥</span><span data-i18n="import">Import</span></button>
+    <button class="btn btn-secondary" onclick="exportExcel()"><span>📤</span><span data-i18n="export">Export</span></button>
+    <button class="btn btn-print" onclick="printHandover()"><span>🖨</span><span data-i18n="print">Print</span></button>
+    <button class="btn btn-primary" onclick="openAddModal()"><span>＋</span><span data-i18n="addPatient">Add Patient</span></button>
+  </div>
+</header>
+
+<div class="quota-bar">
+  <span class="quota-label" data-i18n="quota">Quota</span>
+  <div class="quota-cards">
+    <div class="quota-card"><div class="qzone B">B</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qB">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill B" id="qfB" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone D">D</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qD">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill D" id="qfD" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone E">E</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qE">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill E" id="qfE" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone T" id="quota-total-label">TOT</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qT">24</span><span class="qslash">/</span><span class="qtot">24</span></div><div class="qtrack"><div class="qfill T" id="qfT" style="width:100%"></div></div></div></div>
+  </div>
+</div>
+
+<main>
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="pcount" id="pcount">0 patients</span>
+      <div class="view-toggle">
+        <button class="vbtn active" id="vt" onclick="setView('table')">≡ <span data-i18n="table">Table</span></button>
+        <button class="vbtn" id="vg" onclick="setView('grid')">⊞ <span data-i18n="grid">Grid</span></button>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <div class="ctrl-inline">
+        <label for="print-profile" data-i18n="printProfile">Print mode</label>
+        <select id="print-profile" class="ctrl-select" onchange="changePrintProfile(this.value)">
+          <option value="fit" data-i18n="printProfileFit">One page priority</option>
+          <option value="balanced" data-i18n="printProfileBalanced">Balanced</option>
+          <option value="readable" data-i18n="printProfileReadable">Readable</option>
+        </select>
+      </div>
+      <div class="ctrl-inline">
+        <label for="print-scale" data-i18n="printScale">Scale</label>
+        <input class="ctrl-range" type="range" id="print-scale" min="75" max="115" step="5" onchange="changePrintScale(this.value)" oninput="updatePrintScaleLabel(this.value)">
+        <span class="ctrl-value" id="print-scale-value">100%</span>
+      </div>
+      <div class="print-note" id="print-hint">Default</div>
+    </div>
+  </div>
+  <div id="tv">
+    <div class="twrap">
+      <table>
+        <thead><tr><th data-i18n="bed">Bed</th><th data-i18n="zone">Zone</th><th data-i18n="name">Name</th><th data-i18n="ageSex">Age/Sex</th><th data-i18n="chart">Chart #</th><th data-i18n="cc">CC</th><th data-i18n="pmh">PMH</th><th data-i18n="impression">Impression</th><th data-i18n="treatment">Treatment</th><th data-i18n="notes">Notes</th><th data-i18n="admitTo">Admit To</th><th data-i18n="actions">Actions</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="gv" style="display:none"><div class="bed-grid" id="bgrid"></div></div>
+</main>
+
+<div id="print-area" style="display:none">
+  <div class="print-sheet">
+    <div class="print-header"><h1 id="pt-title">O-Zone Observation Ward — Handover Sheet</h1><p id="pt-time"></p></div>
+    <div class="print-quota" id="pt-quota"></div>
+    <table class="print-table">
+      <thead><tr><th data-i18n="bed">Bed</th><th data-i18n="zone">Zone</th><th data-i18n="ageSex">Age/Sex</th><th data-i18n="chart">Chart #</th><th data-i18n="cc">CC</th><th data-i18n="pmh">PMH</th><th data-i18n="impression">Impression</th><th data-i18n="treatment">Treatment</th><th data-i18n="notes">Notes</th><th data-i18n="admitTo">Admit To</th></tr></thead>
+      <tbody id="pt-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="overlay" id="pm">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="pm-title">Add Patient</div><button class="mclose" onclick="closeModal('pm')">✕</button></div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg">
+          <label data-i18n-html="bedReq">Bed # <span class="req">*</span></label>
+          <select id="f-bed" onchange="onBedChange()"></select>
+          <input type="text" id="f-bed-custom" data-i18n-placeholder="customBed" placeholder="Custom bed # (if not listed)" style="margin-top:6px">
+        </div>
+        <div class="fg">
+          <label data-i18n-html="originZoneReq">Origin Zone <span class="req">*</span></label>
+          <select id="f-zone" onchange="onZoneChange()"></select>
+        </div>
+        <div class="fg"><label data-i18n-html="nameReq">Name <span class="req">*</span></label><input type="text" id="f-name" data-i18n-placeholder="patientName" placeholder="Patient name"></div>
+        <div class="fg">
+          <label id="lbl-borrow">Borrow Quota From</label>
+          <select id="f-borrow"></select>
+        </div>
+        <div class="fg"><label data-i18n="ageSlashSex">Age / Sex</label><div class="agesex"><input type="number" id="f-age" placeholder="Age" min="0" max="130"><select id="f-sex"><option value="" data-i18n="sex">Sex</option><option value="M">M</option><option value="F">F</option></select></div></div>
+        <div class="fg"><label data-i18n="chartNumber">Chart Number</label><input type="text" id="f-chart" data-i18n-placeholder="exampleChart" placeholder="e.g. 26372450"></div>
+        <div class="fg full">
+          <label data-i18n="admitTo">Admit To</label>
+          <input type="text" id="f-admit" list="spec-list" data-i18n-placeholder="exampleAdmit" placeholder="e.g. Nephro, GI, Neuro...">
+          <datalist id="spec-list">
+            <option value="Cardio"><option value="Nephro"><option value="GI"><option value="Neuro">
+            <option value="Hema"><option value="GU"><option value="Pulm"><option value="Endo">
+            <option value="ID"><option value="CV"><option value="Ortho"><option value="Surgery">
+            <option value="Derm"><option value="Rheum"><option value="Psych"><option value="OB">
+            <option value="Peds"><option value="Onco"><option value="Ophth"><option value="ENT">
+            <option value="Plastics"><option value="Uro">
+          </datalist>
+        </div>
+        <div class="fg full"><label data-i18n="chiefComplaint">Chief Complaint</label><textarea id="f-cc" data-i18n-placeholder="mainComplaint" placeholder="Main presenting complaint..."></textarea></div>
+        <div class="fg full"><label data-i18n="pastMedicalHistory">Past Medical History (PMH)</label><textarea id="f-pmh" data-i18n-placeholder="relevantPMH" placeholder="Relevant past medical history..."></textarea></div>
+        <div class="fg full"><label data-i18n="impressionDiagnosis">Impression / Diagnosis</label><textarea id="f-impression" data-i18n-placeholder="workingDiagnosis" placeholder="Working diagnosis..."></textarea></div>
+        <div class="fg full"><label data-i18n="treatmentPlan">Treatment / Plan</label><textarea id="f-tx" data-i18n-placeholder="currentTreatment" placeholder="Current treatment plan..."></textarea></div>
+        <div class="fg full"><label data-i18n="notesRemarks">Notes / Remarks</label><textarea id="f-notes" data-i18n-placeholder="additionalNotes" placeholder="Additional notes..."></textarea></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-secondary" onclick="closeModal('pm')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-primary" onclick="savePatient()" data-i18n="savePatient">Save Patient</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="cdm">
+  <div class="modal xs">
+    <div class="mhead"><div class="mtitle" data-i18n="dischargeRemove">Discharge / Remove</div><button class="mclose" onclick="closeModal('cdm')">✕</button></div>
+    <div class="confirm-body">
+      <div class="confirm-icon">📦</div>
+      <div class="confirm-title" data-i18n="archivePatient">Archive Patient?</div>
+      <p id="cdm-msg"></p>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-secondary" onclick="closeModal('cdm')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-danger" id="cdm-ok" data-i18n="removeArchive">Remove & Archive</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="am">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" data-i18n="historyTitle">📜 Patient History (Recently Removed)</div><button class="mclose" onclick="closeModal('am')">✕</button></div>
+    <div class="mbody" style="max-height: 50vh; overflow-y: auto; padding: 0;">
+      <table style="width:100%; border-collapse:collapse; white-space:nowrap;">
+        <thead style="position:sticky; top:0; background:var(--bg3); z-index:2;">
+          <tr>
+            <th style="padding:10px 14px; text-align:left; border-bottom:1px solid var(--border)" data-i18n="name">Name</th>
+            <th style="padding:10px 14px; text-align:left; border-bottom:1px solid var(--border)" data-i18n="chart">Chart #</th>
+            <th style="padding:10px 14px; text-align:left; border-bottom:1px solid var(--border)" data-i18n="timeArchived">Time Archived</th>
+            <th style="padding:10px 14px; text-align:right; border-bottom:1px solid var(--border)" data-i18n="action">Action</th>
+          </tr>
+        </thead>
+        <tbody id="archive-body"></tbody>
+      </table>
+      <div id="archive-loading" style="text-align:center; padding: 30px; color: var(--text2); font-size: 13px;" data-i18n="loadingHistory">Loading history...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FIREBASE_URL = 'https://ozone-ed-default-rtdb.firebaseio.com';
+const QUOTA = {B:8, D:8, E:8};
+const CACHE_PATIENTS = 'ozone_patients_v2';
+const CACHE_ARCHIVE = 'ozone_archive_v2';
+const CACHE_LANG = 'ozone_lang';
+const CACHE_PRINT = 'ozone_print_v1';
+const ARCHIVE_CACHE_TTL = 60 * 1000;
+const HIDDEN_SUSPEND_MS = 45 * 1000;
+
+let patients = lsGet(CACHE_PATIENTS) || [];
+let editingId = null;
+let deleteTargetId = null;
+let currentView = 'table';
+let currentLang = lsGet(CACHE_LANG) || 'zh';
+let printSettings = Object.assign({profile:'balanced', scale:100}, lsGet(CACHE_PRINT) || {});
+
+let fbRef = null;
+let fbArchiveRef = null;
+let rootRef = null;
+let infoRef = null;
+let listenersAttached = false;
+let hiddenSuspendTimer = null;
+let connectionSuspended = false;
+let renderQueued = false;
+let persistTimer = null;
+let archiveCache = {data: lsGet(CACHE_ARCHIVE) || [], ts: 0};
+let firebaseHandlers = {};
+
+const PRINT_PROFILES = {
+  fit: {scale:0.84, font:7.7, thFont:7.2, cellPy:2, cellPx:4, hintKey:'fitHint', limits:{cc:38, pmh:34, impression:44, tx:44, notes:34}},
+  balanced: {scale:0.92, font:8.8, thFont:8.2, cellPy:4, cellPx:6, hintKey:'balancedHint', limits:{cc:68, pmh:60, impression:70, tx:70, notes:54}},
+  readable: {scale:1.00, font:10.0, thFont:9.0, cellPy:5, cellPx:7, hintKey:'readableHint', limits:{cc:110, pmh:100, impression:110, tx:110, notes:90}}
+};
+
+const I18N = {
+  en: {
+    appTitle:'ED Observation Ward', appSubtitle:'Patient Tracking System', history:'History', import:'Import', export:'Export', print:'Print', addPatient:'Add Patient', quota:'Quota',
+    table:'Table', grid:'Grid', printProfile:'Print mode', printScale:'Scale', printProfileFit:'One page priority', printProfileBalanced:'Balanced', printProfileReadable:'Readable',
+    fitHint:'Best chance to fit 1 page', balancedHint:'Default', readableHint:'Bigger text', bed:'Bed', zone:'Zone', name:'Name', ageSex:'Age/Sex', chart:'Chart #', cc:'CC', pmh:'PMH',
+    impression:'Impression', treatment:'Treatment', notes:'Notes', admitTo:'Admit To', actions:'Actions', appPrintTitle:'O-Zone Observation Ward — Handover Sheet',
+    loadingHistory:'Loading history...', noHistory:'No recently discharged patients found.', failHistory:'Failed to load history.', restore:'Restore', edit:'Edit', remove:'Remove',
+    archivePatient:'Archive Patient?', dischargeRemove:'Discharge / Remove', removeArchive:'Remove & Archive', timeArchived:'Time Archived', action:'Action', historyTitle:'📜 Patient History (Recently Removed)',
+    bedReq:'Bed # <span class="req">*</span>', originZoneReq:'Origin Zone <span class="req">*</span>', nameReq:'Name <span class="req">*</span>', originZone:'Origin Zone', borrowQuota:'Borrow Quota From',
+    ageSlashSex:'Age / Sex', sex:'Sex', chartNumber:'Chart Number', chiefComplaint:'Chief Complaint', pastMedicalHistory:'Past Medical History (PMH)', impressionDiagnosis:'Impression / Diagnosis',
+    treatmentPlan:'Treatment / Plan', notesRemarks:'Notes / Remarks', customBed:'Custom bed # (if not listed)', patientName:'Patient name', exampleChart:'e.g. 26372450', exampleAdmit:'e.g. Nephro, GI, Neuro...',
+    mainComplaint:'Main presenting complaint...', relevantPMH:'Relevant past medical history...', workingDiagnosis:'Working diagnosis...', currentTreatment:'Current treatment plan...', additionalNotes:'Additional notes...',
+    cancel:'Cancel', savePatient:'Save Patient', addPatientTitle:'Add Patient', editPatientTitle:'Edit Patient', printed:'Printed', total:'Total', totalShort:'TOT',
+    selectBed:'— Select bed # —', occupied:'occupied', selectZone:'— Select Zone —', zoneA:'A — Trauma', zoneB:'B — Internal Medicine', zoneC:'C — Critical', zoneD:'D — Internal Medicine', zoneE:'E — Internal Medicine',
+    borrowNone:'— None (Use own quota) —', borrowB:'Borrow from Zone B', borrowD:'Borrow from Zone D', borrowE:'Borrow from Zone E',
+    noPatients:'No patients. Click + Add Patient or Import to begin.', noPatientsGrid:'No patients yet.', noCCEntered:'No CC entered',
+    syncOnline:'☁ Synced', syncOffline:'☁ Offline', syncError:'☁ Error — check network', syncConnecting:'☁ Connecting…', syncPaused:'☁ Suspended',
+    pleaseSelectBed:'Please select or enter a bed number.', pleaseSelectZone:'Please select an origin zone.', pleaseEnterName:'Please enter patient name.',
+    zoneBorrowRequired:'Zone A / C patients must borrow quota. Please select a zone to borrow from.', cannotBorrowSame:'Cannot borrow quota from the same zone you are in.',
+    noQuota:'Zone {zone} has no remaining quota.', saveFailed:'Save failed. Please check network connection.', restoreFailed:'Restore failed. Please check network.', archiveFailed:'Archive failed. Please check network.',
+    noDataExport:'No patient data to export.', excelParseFail:'Failed to parse Excel file.', imported:'Successfully imported {count} patients.', archiveMsg:'Archive {name} (Bed {bed})? You can restore them from the History log later.',
+    language:'Language', patientsLabel:'patients', patientLabel:'patient'
+  },
+  zh: {
+    appTitle:'急診留觀區', appSubtitle:'病人追蹤系統', history:'歷史', import:'匯入', export:'匯出', print:'列印', addPatient:'新增病人', quota:'額度',
+    table:'表格', grid:'卡片', printProfile:'列印模式', printScale:'縮放', printProfileFit:'一頁優先', printProfileBalanced:'平衡', printProfileReadable:'易讀',
+    fitHint:'最適合盡量壓成一頁', balancedHint:'預設模式', readableHint:'字體較大', bed:'床號', zone:'原區', name:'姓名', ageSex:'年齡/性別', chart:'病歷號', cc:'主訴', pmh:'病史',
+    impression:'臆斷', treatment:'治療', notes:'備註', admitTo:'收哪科', actions:'操作', appPrintTitle:'O區急診留觀交班單',
+    loadingHistory:'讀取歷史中...', noHistory:'目前沒有近期出區病人。', failHistory:'歷史資料讀取失敗。', restore:'復原', edit:'編輯', remove:'移除',
+    archivePatient:'要歸檔這位病人嗎？', dischargeRemove:'出區 / 移除', removeArchive:'移除並歸檔', timeArchived:'歸檔時間', action:'操作', historyTitle:'📜 病人歷史紀錄（近期移除）',
+    bedReq:'床號 <span class="req">*</span>', originZoneReq:'原區 <span class="req">*</span>', nameReq:'姓名 <span class="req">*</span>', originZone:'原區', borrowQuota:'借額度自',
+    ageSlashSex:'年齡 / 性別', sex:'性別', chartNumber:'病歷號', chiefComplaint:'主訴', pastMedicalHistory:'過去病史', impressionDiagnosis:'臆斷 / 診斷',
+    treatmentPlan:'治療 / 計畫', notesRemarks:'備註', customBed:'自訂床號（若清單內沒有）', patientName:'病人姓名', exampleChart:'例如：26372450', exampleAdmit:'例如：Nephro、GI、Neuro...',
+    mainComplaint:'主要主訴...', relevantPMH:'相關過去病史...', workingDiagnosis:'目前工作診斷...', currentTreatment:'目前治療計畫...', additionalNotes:'其他備註...',
+    cancel:'取消', savePatient:'儲存病人', addPatientTitle:'新增病人', editPatientTitle:'編輯病人', printed:'列印時間', total:'總量', totalShort:'總',
+    selectBed:'— 選擇床號 —', occupied:'已占床', selectZone:'— 選擇區域 —', zoneA:'A — 外傷', zoneB:'B — 內科', zoneC:'C — 重症', zoneD:'D — 內科', zoneE:'E — 內科',
+    borrowNone:'— 不借額度（用本區）—', borrowB:'向 B 區借額度', borrowD:'向 D 區借額度', borrowE:'向 E 區借額度',
+    noPatients:'目前沒有病人，請按「新增病人」或「匯入」。', noPatientsGrid:'目前沒有病人。', noCCEntered:'尚未輸入主訴',
+    syncOnline:'☁ 已同步', syncOffline:'☁ 離線中', syncError:'☁ 連線錯誤', syncConnecting:'☁ 連線中…', syncPaused:'☁ 節流暫停',
+    pleaseSelectBed:'請選擇或輸入床號。', pleaseSelectZone:'請選擇原區。', pleaseEnterName:'請輸入姓名。',
+    zoneBorrowRequired:'A / C 區病人必須借額度，請選擇借用區域。', cannotBorrowSame:'不能向同一區借額度。',
+    noQuota:'{zone} 區額度已滿。', saveFailed:'儲存失敗，請檢查網路。', restoreFailed:'復原失敗，請檢查網路。', archiveFailed:'歸檔失敗，請檢查網路。',
+    noDataExport:'目前沒有可匯出的病人資料。', excelParseFail:'Excel 解析失敗。', imported:'成功匯入 {count} 位病人。', archiveMsg:'要歸檔 {name}（床號 {bed}）嗎？之後可在歷史紀錄中復原。',
+    language:'語言', patientsLabel:'位病人', patientLabel:'位病人'
+  }
+};
+
+function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}
+function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function t(key, vars={}){
+  let s = (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+  return s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+}
+function esc(v){return String(v ?? '').replace(/[&<>"]|'/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function compactText(v){return String(v ?? '').replace(/\s+/g,' ').trim();}
+function clipText(v, limit){
+  const s = compactText(v);
+  if(!s) return '';
+  return s.length > limit ? s.slice(0, limit - 1) + '…' : s;
+}
+function ageSex(p){ return (p.age || p.sex) ? `${p.age || '?'}${p.sex || '?'}` : '—'; }
+function bedSortTuple(bed){
+  const s = String(bed || '').trim();
+  if(/^\d+$/.test(s)) return [0, parseInt(s, 10), ''];
+  return [1, 999, s.toLowerCase()];
+}
+function sorted(){
+  return [...patients].sort((a,b)=>{
+    const aa = bedSortTuple(a.bed), bb = bedSortTuple(b.bed);
+    if(aa[0] !== bb[0]) return aa[0] - bb[0];
+    if(aa[1] !== bb[1]) return aa[1] - bb[1];
+    return aa[2].localeCompare(bb[2]);
+  });
+}
+function scheduleRender(){
+  if(renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
+function schedulePersist(){
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => lsSet(CACHE_PATIENTS, patients), 250);
+}
+
+function applyPrintSettings(){
+  const profile = PRINT_PROFILES[printSettings.profile] || PRINT_PROFILES.balanced;
+  const userScale = Math.max(75, Math.min(115, Number(printSettings.scale) || 100)) / 100;
+  document.documentElement.style.setProperty('--print-scale', (profile.scale * userScale).toFixed(3));
+  document.documentElement.style.setProperty('--print-font', profile.font + 'px');
+  document.documentElement.style.setProperty('--print-th-font', profile.thFont + 'px');
+  document.documentElement.style.setProperty('--print-cell-py', profile.cellPy + 'px');
+  document.documentElement.style.setProperty('--print-cell-px', profile.cellPx + 'px');
+  document.getElementById('print-profile').value = printSettings.profile;
+  document.getElementById('print-scale').value = String(printSettings.scale);
+  updatePrintScaleLabel(printSettings.scale);
+  document.getElementById('print-hint').textContent = t(profile.hintKey);
+  lsSet(CACHE_PRINT, printSettings);
+}
+function updatePrintScaleLabel(v){ document.getElementById('print-scale-value').textContent = `${v}%`; }
+function changePrintProfile(v){ printSettings.profile = v; applyPrintSettings(); }
+function changePrintScale(v){ printSettings.scale = Number(v); applyPrintSettings(); }
+function printProfileConfig(){ return PRINT_PROFILES[printSettings.profile] || PRINT_PROFILES.balanced; }
+
+function formatPatientCount(n){
+  if(currentLang === 'zh') return `${n} ${t('patientsLabel')}`;
+  return `${n} ${n === 1 ? t('patientLabel') : t('patientsLabel')}`;
+}
+function localeCode(){ return currentLang === 'zh' ? 'zh-TW' : 'en-US'; }
+function updateClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString(localeCode(), {hour12:false});
+}
+
+function setSyncStatus(s){
+  document.getElementById('sync-dot').className = 'sync-dot ' + s;
+  const map = {online:'syncOnline', offline:'syncOffline', error:'syncError', connecting:'syncConnecting', paused:'syncPaused'};
+  document.getElementById('sync-label').textContent = t(map[s] || 'syncConnecting');
+}
+
+function updateZoneOptions(){
+  const sel = document.getElementById('f-zone');
+  const current = sel.value;
+  sel.innerHTML = `
+    <option value="">${t('selectZone')}</option>
+    <option value="A">${t('zoneA')}</option>
+    <option value="B">${t('zoneB')}</option>
+    <option value="C">${t('zoneC')}</option>
+    <option value="D">${t('zoneD')}</option>
+    <option value="E">${t('zoneE')}</option>`;
+  sel.value = current;
+}
+function updateBorrowOptions(){
+  const sel = document.getElementById('f-borrow');
+  const current = sel.value;
+  sel.innerHTML = `
+    <option value="">${t('borrowNone')}</option>
+    <option value="B">${t('borrowB')}</option>
+    <option value="D">${t('borrowD')}</option>
+    <option value="E">${t('borrowE')}</option>`;
+  sel.value = current;
+}
+function populateBedSelect(){
+  const sel = document.getElementById('f-bed');
+  const used = new Set(patients.filter(p => p.id !== editingId).map(p => String(p.bed)));
+  const current = sel.value;
+  sel.innerHTML = `<option value="">${t('selectBed')}</option>`;
+  for(let i=1;i<=24;i++){
+    const s = String(i);
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = currentLang === 'zh' ? `${s} 床` : `Bed ${s}`;
+    if(used.has(s)){ opt.disabled = true; opt.textContent += ` (${t('occupied')})`; }
+    sel.appendChild(opt);
+  }
+  if(current) sel.value = current;
+}
+function updateBorrowLabel(){
+  const z = document.getElementById('f-zone').value;
+  const lbl = document.getElementById('lbl-borrow');
+  lbl.innerHTML = (z === 'A' || z === 'C') ? `${t('borrowQuota')} <span class="req">*</span>` : t('borrowQuota');
+}
+function applyLanguage(){
+  document.documentElement.lang = currentLang === 'zh' ? 'zh-Hant' : 'en';
+  document.title = currentLang === 'zh' ? 'O區急診留觀資訊系統' : 'O-Zone ED Dashboard';
+  document.getElementById('lang-switch').value = currentLang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.getElementById('quota-total-label').textContent = t('totalShort');
+  document.getElementById('pm-title').textContent = editingId ? t('editPatientTitle') : t('addPatientTitle');
+  document.getElementById('pt-title').textContent = t('appPrintTitle');
+  updateZoneOptions();
+  updateBorrowOptions();
+  populateBedSelect();
+  updateBorrowLabel();
+  updateClock();
+  applyPrintSettings();
+  render();
+  setSyncStatus(connectionSuspended ? 'paused' : (listenersAttached ? 'online' : 'connecting'));
+}
+function setLanguage(lang){ currentLang = lang === 'en' ? 'en' : 'zh'; lsSet(CACHE_LANG, currentLang); applyLanguage(); }
+
+function calcQuota(excludeId = null){
+  const u = {B:0, D:0, E:0};
+  patients.forEach(p => {
+    if(excludeId && p.id === excludeId) return;
+    const z = p.borrowZone || p.zone;
+    if(u[z] !== undefined) u[z]++;
+  });
+  return {B:QUOTA.B-u.B, D:QUOTA.D-u.D, E:QUOTA.E-u.E, T:24-(excludeId ? patients.filter(p=>p.id!==excludeId).length : patients.length)};
+}
+function renderQuota(){
+  const q = calcQuota();
+  ['B','D','E'].forEach(z => {
+    const r = q[z], el = document.getElementById('q' + z);
+    el.textContent = r;
+    el.className = 'qrem ' + (r >= 5 ? 'ok' : r >= 2 ? 'mid' : 'low');
+    document.getElementById('qf' + z).style.width = (r / QUOTA[z] * 100) + '%';
+  });
+  const tVal = q.T, tel = document.getElementById('qT');
+  tel.textContent = tVal;
+  tel.className = 'qrem ' + (tVal >= 10 ? 'ok' : tVal >= 5 ? 'mid' : 'low');
+  document.getElementById('qfT').style.width = (tVal / 24 * 100) + '%';
+}
+
+function renderTable(){
+  const s = sorted();
+  const tbody = document.getElementById('tbody');
+  if(!s.length){
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🛏</div><p>${esc(t('noPatients'))}</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = s.map(p => {
+    const br = p.borrowZone ? `<div class="borrow-note">↩${esc(p.borrowZone)}</div>` : '';
+    return `<tr onclick="openEditModal('${esc(p.id)}')">
+      <td><span class="bed-tag">${esc(p.bed)}</span></td>
+      <td><span class="zbadge ${esc(p.zone)}">${esc(p.zone)}</span>${br}</td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td style="font-family:'JetBrains Mono',monospace">${esc(ageSex(p))}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--text2)">${esc(p.chart || '—')}</td>
+      <td class="wc">${esc(p.cc || '—')}</td>
+      <td class="wc">${esc(p.pmh || '—')}</td>
+      <td class="wc">${esc(p.impression || '—')}</td>
+      <td class="wc">${esc(p.tx || '—')}</td>
+      <td class="wc">${esc(p.notes || '—')}</td>
+      <td>${p.admit ? `<span class="admit-badge">${esc(p.admit)}</span>` : '—'}</td>
+      <td onclick="event.stopPropagation()"><div style="display:flex;gap:6px">
+        <button class="abtn abtn-edit" onclick="openEditModal('${esc(p.id)}')">${esc(t('edit'))}</button>
+        <button class="abtn abtn-del" onclick="confirmDelete('${esc(p.id)}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderGrid(){
+  const s = sorted();
+  const g = document.getElementById('bgrid');
+  if(!s.length){
+    g.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🛏</div><p>${esc(t('noPatientsGrid'))}</p></div>`;
+    return;
+  }
+  g.innerHTML = s.map(p => {
+    const br = p.borrowZone ? `<span class="mpill" style="color:var(--warn)">↩${esc(p.borrowZone)}</span>` : '';
+    return `<div class="bed-card z${esc(p.zone)}" onclick="openEditModal('${esc(p.id)}')">
+      <div class="bc-head"><span class="bed-tag">${currentLang === 'zh' ? `${esc(p.bed)} 床` : `Bed ${esc(p.bed)}`}</span><span class="zbadge ${esc(p.zone)}">${esc(p.zone)}</span></div>
+      <div class="bc-name">${esc(p.name)}</div>
+      <div class="bc-meta"><span class="mpill">${esc(ageSex(p))}</span>${p.chart ? `<span class="mpill">${esc(p.chart)}</span>` : ''}${br}</div>
+      <div class="bc-cc">${p.cc ? esc(p.cc) : `<em style="color:var(--text3)">${esc(t('noCCEntered'))}</em>`}</div>
+      ${p.admit ? `<div style="margin-top:8px"><span class="admit-badge">${esc(p.admit)}</span></div>` : ''}
+      <div class="bc-foot" onclick="event.stopPropagation()">
+        <button class="abtn abtn-edit" onclick="openEditModal('${esc(p.id)}')">${esc(t('edit'))}</button>
+        <button class="abtn abtn-del" onclick="confirmDelete('${esc(p.id)}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render(){
+  renderQuota();
+  renderTable();
+  renderGrid();
+  document.getElementById('pcount').textContent = formatPatientCount(patients.length);
+}
+
+const openModal = id => document.getElementById(id).classList.add('open');
+const closeModal = id => document.getElementById(id).classList.remove('open');
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', function(e){ if(e.target === this) this.classList.remove('open'); }));
+
+function clearForm(){
+  ['f-bed','f-zone','f-sex','f-borrow'].forEach(id => document.getElementById(id).value = '');
+  ['f-bed-custom','f-name','f-chart','f-admit','f-cc','f-pmh','f-impression','f-tx','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-age').value = '';
+  document.getElementById('f-bed-custom').style.display = '';
+  updateBorrowLabel();
+}
+function openAddModal(){
+  editingId = null;
+  document.getElementById('pm-title').textContent = t('addPatientTitle');
+  clearForm();
+  populateBedSelect();
+  updateZoneOptions();
+  updateBorrowOptions();
+  openModal('pm');
+  setTimeout(() => document.getElementById('f-bed').focus(), 100);
+}
+function openEditModal(id){
+  const p = patients.find(x => x.id === id); if(!p) return;
+  editingId = id;
+  document.getElementById('pm-title').textContent = t('editPatientTitle');
+  updateZoneOptions();
+  updateBorrowOptions();
+  populateBedSelect();
+  const isNum = /^\d+$/.test(String(p.bed || '').trim());
+  document.getElementById('f-bed').value = isNum ? p.bed : '';
+  document.getElementById('f-bed-custom').value = isNum ? '' : p.bed;
+  document.getElementById('f-bed-custom').style.display = isNum ? 'none' : '';
+  document.getElementById('f-zone').value = p.zone;
+  document.getElementById('f-name').value = p.name;
+  document.getElementById('f-age').value = p.age || '';
+  document.getElementById('f-sex').value = p.sex || '';
+  document.getElementById('f-chart').value = p.chart || '';
+  document.getElementById('f-admit').value = p.admit || '';
+  document.getElementById('f-cc').value = p.cc || '';
+  document.getElementById('f-pmh').value = p.pmh || '';
+  document.getElementById('f-impression').value = p.impression || '';
+  document.getElementById('f-tx').value = p.tx || '';
+  document.getElementById('f-notes').value = p.notes || '';
+  document.getElementById('f-borrow').value = p.borrowZone || '';
+  onZoneChange();
+  openModal('pm');
+}
+function onBedChange(){ document.getElementById('f-bed-custom').style.display = document.getElementById('f-bed').value ? 'none' : ''; }
+function onZoneChange(){ updateBorrowLabel(); }
+
+function savePatient(){
+  const bedSel = document.getElementById('f-bed').value;
+  const bedCustom = document.getElementById('f-bed-custom').value.trim();
+  const bed = bedSel || bedCustom;
+  const zone = document.getElementById('f-zone').value;
+  const name = document.getElementById('f-name').value.trim();
+  const borrow = document.getElementById('f-borrow').value;
+
+  if(!bed){ alert(t('pleaseSelectBed')); return; }
+  if(!zone){ alert(t('pleaseSelectZone')); return; }
+  if(!name){ alert(t('pleaseEnterName')); return; }
+  if((zone === 'A' || zone === 'C') && !borrow){ alert(t('zoneBorrowRequired')); return; }
+  if(borrow && borrow === zone){ alert(t('cannotBorrowSame')); return; }
+
+  const targetZone = borrow || zone;
+  const q = calcQuota(editingId);
+  if(q[targetZone] !== undefined && q[targetZone] <= 0){ alert(t('noQuota', {zone: targetZone})); return; }
+
+  const existing = editingId ? patients.find(x => x.id === editingId) : null;
+  const p = {
+    id: editingId || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    bed,
+    zone,
+    name,
+    age: document.getElementById('f-age').value.trim(),
+    sex: document.getElementById('f-sex').value,
+    chart: document.getElementById('f-chart').value.trim(),
+    admit: document.getElementById('f-admit').value.trim(),
+    cc: document.getElementById('f-cc').value.trim(),
+    pmh: document.getElementById('f-pmh').value.trim(),
+    impression: document.getElementById('f-impression').value.trim(),
+    tx: document.getElementById('f-tx').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    borrowZone: borrow || null,
+    createdAt: existing?.createdAt || Date.now()
+  };
+
+  if(!fbRef){
+    if(editingId){
+      const idx = patients.findIndex(x => x.id === editingId);
+      if(idx > -1) patients[idx] = p;
+    } else {
+      patients.push(p);
+    }
+    schedulePersist(); scheduleRender(); closeModal('pm'); return;
+  }
+
+  rootRef.update({[`ozone_patients/${p.id}`]: p}).then(() => closeModal('pm')).catch(err => {
+    console.error(err); alert(t('saveFailed')); setSyncStatus('error');
+  });
+}
+
+function confirmDelete(id){
+  const p = patients.find(x => x.id === id); if(!p) return;
+  deleteTargetId = id;
+  document.getElementById('cdm-msg').textContent = t('archiveMsg', {name: p.name, bed: p.bed});
+  document.getElementById('cdm-ok').onclick = () => {
+    const archived = Object.assign({}, p, {archivedAt: Date.now()});
+    if(!fbRef){
+      archiveCache.data = [archived, ...(archiveCache.data || []).filter(x => x.id !== id)].slice(0, 100);
+      archiveCache.ts = Date.now();
+      lsSet(CACHE_ARCHIVE, archiveCache.data);
+      patients = patients.filter(x => x.id !== deleteTargetId);
+      schedulePersist(); scheduleRender(); closeModal('cdm'); return;
+    }
+    rootRef.update({
+      [`ozone_archive/${archived.id}`]: archived,
+      [`ozone_patients/${archived.id}`]: null
+    }).then(() => closeModal('cdm')).catch(err => {
+      console.error(err); alert(t('archiveFailed'));
+    });
+  };
+  openModal('cdm');
+}
+
+function renderArchive(arr){
+  const tbody = document.getElementById('archive-body');
+  const loader = document.getElementById('archive-loading');
+  loader.style.display = 'none';
+
+  if(!arr.length){
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text2)">${esc(t('noHistory'))}</td></tr>`;
+    return;
+  }
+
+  arr.sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+  tbody.innerHTML = arr.map(p => {
+    const d = new Date(p.archivedAt || Date.now());
+    const dateStr = d.toLocaleString(localeCode(), {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px"><strong>${esc(p.name)}</strong></td>
+      <td style="padding:10px 14px; font-family:'JetBrains Mono',monospace">${esc(p.chart || '—')}</td>
+      <td style="padding:10px 14px; color:var(--text2); font-size:11px">${esc(dateStr)}</td>
+      <td style="padding:10px 14px; text-align:right;"><button class="abtn abtn-edit" onclick="restorePatient('${esc(p.id)}')">↩ ${esc(t('restore'))}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openArchiveModal(forceRefresh = false){
+  openModal('am');
+  const tbody = document.getElementById('archive-body');
+  const loader = document.getElementById('archive-loading');
+  tbody.innerHTML = '';
+  loader.style.display = 'block';
+  loader.textContent = t('loadingHistory');
+
+  if(!fbArchiveRef){
+    renderArchive([...(archiveCache.data || [])]);
+    return;
+  }
+
+  if(!forceRefresh && archiveCache.data && archiveCache.data.length && Date.now() - archiveCache.ts < ARCHIVE_CACHE_TTL){
+    renderArchive([...(archiveCache.data || [])]);
+    return;
+  }
+
+  fbArchiveRef.orderByChild('archivedAt').limitToLast(100).once('value').then(snap => {
+    const data = snap.val();
+    const arr = data ? Object.values(data) : [];
+    archiveCache = {data: arr, ts: Date.now()};
+    lsSet(CACHE_ARCHIVE, arr);
+    renderArchive(arr);
+  }).catch(() => {
+    loader.style.display = 'none';
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--danger)">${esc(t('failHistory'))}</td></tr>`;
+  });
+}
+
+function restorePatient(id){
+  if(!fbArchiveRef){
+    const p = (archiveCache.data || []).find(x => x.id === id);
+    if(!p) return;
+    const restored = Object.assign({}, p);
+    delete restored.archivedAt;
+    archiveCache.data = (archiveCache.data || []).filter(x => x.id !== id);
+    archiveCache.ts = Date.now();
+    lsSet(CACHE_ARCHIVE, archiveCache.data);
+    patients.push(restored);
+    schedulePersist(); scheduleRender(); openArchiveModal(true); return;
+  }
+
+  fbArchiveRef.child(id).once('value').then(snap => {
+    const p = snap.val();
+    if(!p) return Promise.resolve();
+    const restored = Object.assign({}, p);
+    delete restored.archivedAt;
+    return rootRef.update({
+      [`ozone_patients/${id}`]: restored,
+      [`ozone_archive/${id}`]: null
+    });
+  }).then(() => {
+    archiveCache.ts = 0;
+    openArchiveModal(true);
+  }).catch(err => {
+    console.error(err); alert(t('restoreFailed'));
+  });
+}
+
+function exportExcel(){
+  if(!patients.length){ alert(t('noDataExport')); return; }
+  const data = sorted().map(p => ({
+    'Bed': p.bed, 'Zone': p.zone, 'Name': p.name, 'Age': p.age, 'Sex': p.sex,
+    'Chart #': p.chart, 'CC': p.cc, 'PMH': p.pmh, 'Impression': p.impression,
+    'Treatment': p.tx, 'Notes': p.notes, 'Admit To': p.admit, 'Borrow Zone': p.borrowZone || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'O-Zone Patients');
+  XLSX.writeFile(wb, `OZone_Handover_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function handleExcelImport(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const workbook = XLSX.read(evt.target.result, {type:'binary'});
+      const firstSheetName = workbook.SheetNames[0];
+      const excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[firstSheetName]);
+      processImportedData(excelRows);
+    } catch(err){
+      console.error(err); alert(t('excelParseFail'));
+    }
+  };
+  reader.readAsBinaryString(file);
+  e.target.value = '';
+}
+
+function processImportedData(rows){
+  let importedCount = 0;
+  const updates = {};
+  const localAdds = [];
+
+  rows.forEach(r => {
+    const getVal = (possibleKeys) => {
+      for(const key in r){ if(possibleKeys.includes(String(key).toLowerCase().trim())) return String(r[key]).trim(); }
+      return '';
+    };
+    const name = getVal(['name','姓名','病人姓名','patient name']);
+    if(!name) return;
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${importedCount}`;
+    const p = {
+      id,
+      bed: getVal(['bed','床號','bed #']) || '',
+      zone: getVal(['zone','區','區域']) || 'B',
+      name,
+      age: getVal(['age','年紀','年齡']) || '',
+      sex: getVal(['sex','gender','性別']) || '',
+      chart: getVal(['chart','chart #','病歷號','chart no']) || '',
+      cc: getVal(['cc','chief complaint','主訴']) || '',
+      pmh: getVal(['pmh','past history','過去病史','history']) || '',
+      impression: getVal(['impression','diagnosis','診斷','imp']) || '',
+      tx: getVal(['treatment','tx','plan','處置','計畫']) || '',
+      notes: getVal(['notes','備註','remarks']) || '',
+      admit: getVal(['admit to','admit','住院科別','admission']) || '',
+      borrowZone: getVal(['borrow zone','借區','borrow']) || null,
+      createdAt: Date.now() + importedCount
+    };
+    importedCount++;
+    if(fbRef) updates[`ozone_patients/${id}`] = p;
+    else localAdds.push(p);
+  });
+
+  if(!importedCount) return;
+
+  if(fbRef){
+    rootRef.update(updates).then(() => alert(t('imported', {count: importedCount}))).catch(err => {
+      console.error(err); alert(t('saveFailed'));
+    });
+  } else {
+    patients.push(...localAdds);
+    schedulePersist(); scheduleRender();
+    alert(t('imported', {count: importedCount}));
+  }
+}
+
+function setView(v){
+  currentView = v;
+  document.getElementById('tv').style.display = v === 'table' ? '' : 'none';
+  document.getElementById('gv').style.display = v === 'grid' ? '' : 'none';
+  document.getElementById('vt').classList.toggle('active', v === 'table');
+  document.getElementById('vg').classList.toggle('active', v === 'grid');
+}
+
+function printHandover(){
+  const s = sorted();
+  const now = new Date().toLocaleString(localeCode(), {weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false});
+  const q = calcQuota();
+  const cfg = printProfileConfig();
+  document.getElementById('pt-title').textContent = t('appPrintTitle');
+  document.getElementById('pt-time').textContent = `${t('printed')}: ${now}`;
+  document.getElementById('pt-quota').innerHTML = `
+    <span>B: ${q.B}/8</span>
+    <span>D: ${q.D}/8</span>
+    <span>E: ${q.E}/8</span>
+    <span>${esc(t('total'))}: ${q.T}/24</span>`;
+  document.getElementById('pt-body').innerHTML = s.map(p => `
+    <tr>
+      <td>${esc(p.bed)}</td>
+      <td>${esc(p.zone)}${p.borrowZone ? ` (→${esc(p.borrowZone)})` : ''}</td>
+      <td>${esc(ageSex(p))}</td>
+      <td>${esc(p.chart || '')}</td>
+      <td>${esc(clipText(p.cc, cfg.limits.cc))}</td>
+      <td>${esc(clipText(p.pmh, cfg.limits.pmh))}</td>
+      <td>${esc(clipText(p.impression, cfg.limits.impression))}</td>
+      <td>${esc(clipText(p.tx, cfg.limits.tx))}</td>
+      <td>${esc(clipText(p.notes, cfg.limits.notes))}</td>
+      <td>${esc(p.admit || '')}</td>
+    </tr>`).join('');
+  const pa = document.getElementById('print-area');
+  pa.style.display = 'block';
+  window.print();
+  pa.style.display = 'none';
+}
+
+function attachRealtimeListeners(){
+  if(!fbRef || listenersAttached) return;
+  firebaseHandlers.added = snap => {
+    const p = snap.val();
+    if(!p) return;
+    const idx = patients.findIndex(x => x.id === p.id);
+    if(idx === -1) patients.push(p); else patients[idx] = p;
+    schedulePersist(); scheduleRender();
+  };
+  firebaseHandlers.changed = snap => {
+    const p = snap.val();
+    if(!p) return;
+    const idx = patients.findIndex(x => x.id === p.id);
+    if(idx > -1) patients[idx] = p; else patients.push(p);
+    schedulePersist(); scheduleRender();
+  };
+  firebaseHandlers.removed = snap => {
+    patients = patients.filter(x => x.id !== snap.key);
+    schedulePersist(); scheduleRender();
+  };
+  firebaseHandlers.connected = snap => {
+    if(connectionSuspended) return;
+    setSyncStatus(snap.val() ? 'online' : 'offline');
+  };
+
+  fbRef.on('child_added', firebaseHandlers.added);
+  fbRef.on('child_changed', firebaseHandlers.changed);
+  fbRef.on('child_removed', firebaseHandlers.removed);
+  infoRef.on('value', firebaseHandlers.connected);
+  listenersAttached = true;
+}
+function detachRealtimeListeners(){
+  if(!fbRef || !listenersAttached) return;
+  fbRef.off('child_added', firebaseHandlers.added);
+  fbRef.off('child_changed', firebaseHandlers.changed);
+  fbRef.off('child_removed', firebaseHandlers.removed);
+  infoRef.off('value', firebaseHandlers.connected);
+  listenersAttached = false;
+}
+
+function initFirebase(){
+  try{
+    if(!firebase.apps.length) firebase.initializeApp({databaseURL: FIREBASE_URL});
+    const db = firebase.database();
+    rootRef = db.ref();
+    fbRef = db.ref('ozone_patients');
+    fbArchiveRef = db.ref('ozone_archive');
+    infoRef = db.ref('.info/connected');
+    attachRealtimeListeners();
+    setSyncStatus('connecting');
+  } catch(e){
+    console.error('Firebase error:', e);
+    setSyncStatus('error');
+    render();
+  }
+}
+
+function suspendRealtime(){
+  if(!fbRef || connectionSuspended) return;
+  detachRealtimeListeners();
+  firebase.database().goOffline();
+  connectionSuspended = true;
+  setSyncStatus('paused');
+}
+function resumeRealtime(){
+  if(!fbRef) return;
+  clearTimeout(hiddenSuspendTimer);
+  if(!connectionSuspended) return;
+  connectionSuspended = false;
+  firebase.database().goOnline();
+  attachRealtimeListeners();
+  setSyncStatus('connecting');
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(!fbRef) return;
+  if(document.hidden){
+    clearTimeout(hiddenSuspendTimer);
+    hiddenSuspendTimer = setTimeout(suspendRealtime, HIDDEN_SUSPEND_MS);
+  } else {
+    resumeRealtime();
+  }
+});
+window.addEventListener('pagehide', () => { clearTimeout(hiddenSuspendTimer); });
+
+// boot
+render();
+applyLanguage();
+applyPrintSettings();
+updateClock();
+setInterval(updateClock, 1000);
+initFirebase();
+</script>
+</body>
+</html>
