@@ -643,7 +643,6 @@ function calcQuota(excludeId = null){
 }
 function renderQuota(){
   const q = calcQuota();
-  // Count admitted patients per effective zone
   const admitCount = {B:0, D:0, E:0, T:0};
   patients.forEach(p => {
     if(p.admitReady){
@@ -821,18 +820,23 @@ function savePatient(){
     createdAt: existing?.createdAt || Date.now()
   };
 
-  if(!fbRef){
-    if(editingId){
-      const idx = patients.findIndex(x => x.id === editingId);
-      if(idx > -1) patients[idx] = p;
-    } else {
-      patients.push(p);
-    }
-    schedulePersist(); scheduleRender(); closeModal('pm'); return;
+  // 1. 樂觀更新：立刻關閉新增視窗並刷新畫面
+  closeModal('pm');
+  if(editingId){
+    const idx = patients.findIndex(x => x.id === editingId);
+    if(idx > -1) patients[idx] = p;
+  } else {
+    patients.push(p);
   }
+  schedulePersist(); 
+  scheduleRender(); 
 
-  rootRef.update({[`ozone_patients/${p.id}`]: p}).then(() => closeModal('pm')).catch(err => {
-    console.error(err); alert(t('saveFailed')); setSyncStatus('error');
+  // 2. 若有 Firebase 則於背景上傳
+  if(!fbRef) return;
+
+  rootRef.update({[`ozone_patients/${p.id}`]: p}).catch(err => {
+    console.error(err); 
+    setSyncStatus('error');
   });
 }
 
@@ -840,20 +844,29 @@ function confirmDelete(id){
   const p = patients.find(x => x.id === id); if(!p) return;
   deleteTargetId = id;
   document.getElementById('cdm-msg').textContent = t('archiveMsg', {name: p.name, bed: p.bed});
+  
   document.getElementById('cdm-ok').onclick = () => {
     const archived = Object.assign({}, p, {archivedAt: Date.now()});
+    
+    // 1. 樂觀更新：立刻關閉視窗，並將病人從本地畫面移除
+    closeModal('cdm');
+    patients = patients.filter(x => x.id !== id);
+    schedulePersist();
+    scheduleRender();
+
     if(!fbRef){
       archiveCache.data = [archived, ...(archiveCache.data || []).filter(x => x.id !== id)].slice(0, 100);
       archiveCache.ts = Date.now();
       lsSet(CACHE_ARCHIVE, archiveCache.data);
-      patients = patients.filter(x => x.id !== deleteTargetId);
-      schedulePersist(); scheduleRender(); closeModal('cdm'); return;
+      return;
     }
+
+    // 2. 讓 Firebase 在背景執行同步
     rootRef.update({
       [`ozone_archive/${archived.id}`]: archived,
       [`ozone_patients/${archived.id}`]: null
-    }).then(() => closeModal('cdm')).catch(err => {
-      console.error(err); alert(t('archiveFailed'));
+    }).catch(err => {
+      console.error('Firebase 同步失敗:', err);
     });
   };
   openModal('cdm');
