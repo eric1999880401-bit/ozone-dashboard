@@ -89,6 +89,24 @@ td.wc{white-space:normal;max-width:150px;line-height:1.4}
 .zbadge.E{background:rgba(34,197,94,.15);color:var(--zE);border:1px solid rgba(34,197,94,.3)}
 .admit-badge{background:rgba(0,119,255,.12);color:#60a5fa;border:1px solid rgba(0,119,255,.25);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
 .borrow-note{font-size:10px;color:var(--warn);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.abtn-admit{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)}.abtn-admit:hover{background:rgba(168,85,247,.3)}
+.abtn-admit.active{background:rgba(168,85,247,.6);color:#fff;border-color:rgba(168,85,247,.8)}
+.admit-ready-badge{background:rgba(168,85,247,.18);color:#c084fc;border:1px solid rgba(168,85,247,.3);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;display:inline-block;animation:pulse 2s infinite}
+.qpotential{font-family:'JetBrains Mono',monospace;font-size:12px;color:#c084fc;margin-left:2px;opacity:.85}
+.help-section{margin-bottom:20px}.help-section:last-child{margin-bottom:0}
+.help-section h3{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.help-contact-item{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:12px 14px}
+.help-contact-item .hc-icon{font-size:18px;flex-shrink:0}
+.help-contact-item .hc-label{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.help-contact-item .hc-value{font-size:13px;color:var(--text);word-break:break-all}
+.help-qr-wrap{text-align:center;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:20px;margin-top:12px}
+.help-qr-wrap canvas{border-radius:8px;background:white;padding:8px}
+.help-qr-label{font-size:11px;color:var(--text2);margin-top:10px}
+.help-inst{list-style:none;padding:0}.help-inst li{padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.help-inst li:last-child{border-bottom:none}
+.help-inst .hi-num{background:var(--accent);color:#000;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}
+.help-version{text-align:center;color:var(--text3);font-size:11px;font-family:'JetBrains Mono',monospace;padding-top:12px;border-top:1px solid var(--border)}
 .abtn{padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;font-family:'Sora',sans-serif;transition:all .15s}
 .abtn-edit{background:rgba(0,119,255,.15);color:#60a5fa}.abtn-edit:hover{background:rgba(0,119,255,.3)}
 .abtn-del{background:rgba(255,59,85,.15);color:#ff3b55}.abtn-del:hover{background:rgba(255,59,85,.3)}
@@ -156,9 +174,10 @@ textarea{resize:vertical;min-height:60px}
   .print-header p{font-size:10px;color:#555}
   .print-quota{display:flex;gap:24px;justify-content:center;margin-bottom:10px;font-size:11px;font-weight:bold;flex-wrap:wrap}
   .print-table{width:100%;border-collapse:collapse;font-size:var(--print-font)}
-  .print-table th{background:#222;color:white;padding:5px 6px;text-align:left;font-size:var(--print-th-font);text-transform:uppercase}
-  .print-table td{border:1px solid #ddd;padding:var(--print-cell-py) var(--print-cell-px);vertical-align:top;word-break:break-word;white-space:pre-wrap;line-height:1.25}
+  .print-table th{background:#222;color:white;padding:5px 6px;text-align:left;font-size:var(--print-th-font);text-transform:uppercase;white-space:nowrap}
+  .print-table td{border:1px solid #ddd;padding:var(--print-cell-py) var(--print-cell-px);vertical-align:top;word-break:break-word;white-space:pre-wrap;line-height:1.25;overflow-wrap:break-word}
   .print-table tr:nth-child(even) td{background:#f7f7f7}
+  .print-table td:nth-child(1),.print-table td:nth-child(2),.print-table td:nth-child(4),.print-table td:nth-child(5),.print-table td:nth-child(12){white-space:nowrap}
 }
 </style>
 </head>
@@ -187,6 +206,7 @@ textarea{resize:vertical;min-height:60px}
     <input type="file" id="file-import" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleExcelImport(event)">
 
     <button class="btn btn-secondary" onclick="openArchiveModal()"><span>📜</span><span data-i18n="history">History</span></button>
+    <button class="btn btn-secondary" onclick="openHelpModal()"><span>❓</span><span data-i18n="help">Help</span></button>
     <button class="btn btn-secondary" onclick="document.getElementById('file-import').click()"><span>📥</span><span data-i18n="import">Import</span></button>
     <button class="btn btn-secondary" onclick="exportExcel()"><span>📤</span><span data-i18n="export">Export</span></button>
     <button class="btn btn-print" onclick="printHandover()"><span>🖨</span><span data-i18n="print">Print</span></button>
@@ -197,10 +217,10 @@ textarea{resize:vertical;min-height:60px}
 <div class="quota-bar">
   <span class="quota-label" data-i18n="quota">Quota</span>
   <div class="quota-cards">
-    <div class="quota-card"><div class="qzone B">B</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qB">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill B" id="qfB" style="width:100%"></div></div></div></div>
-    <div class="quota-card"><div class="qzone D">D</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qD">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill D" id="qfD" style="width:100%"></div></div></div></div>
-    <div class="quota-card"><div class="qzone E">E</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qE">8</span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill E" id="qfE" style="width:100%"></div></div></div></div>
-    <div class="quota-card"><div class="qzone T" id="quota-total-label">TOT</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qT">24</span><span class="qslash">/</span><span class="qtot">24</span></div><div class="qtrack"><div class="qfill T" id="qfT" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone B">B</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qB">8</span><span class="qpotential" id="qpB"></span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill B" id="qfB" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone D">D</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qD">8</span><span class="qpotential" id="qpD"></span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill D" id="qfD" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone E">E</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qE">8</span><span class="qpotential" id="qpE"></span><span class="qslash">/</span><span class="qtot">8</span></div><div class="qtrack"><div class="qfill E" id="qfE" style="width:100%"></div></div></div></div>
+    <div class="quota-card"><div class="qzone T" id="quota-total-label">TOT</div><div class="qinfo"><div class="qnums"><span class="qrem ok" id="qT">24</span><span class="qpotential" id="qpT"></span><span class="qslash">/</span><span class="qtot">24</span></div><div class="qtrack"><div class="qfill T" id="qfT" style="width:100%"></div></div></div></div>
   </div>
 </div>
 
@@ -246,7 +266,7 @@ textarea{resize:vertical;min-height:60px}
     <div class="print-header"><h1 id="pt-title">O-Zone Observation Ward — Handover Sheet</h1><p id="pt-time"></p></div>
     <div class="print-quota" id="pt-quota"></div>
     <table class="print-table">
-      <thead><tr><th data-i18n="bed">Bed</th><th data-i18n="zone">Zone</th><th data-i18n="ageSex">Age/Sex</th><th data-i18n="chart">Chart #</th><th data-i18n="cc">CC</th><th data-i18n="pmh">PMH</th><th data-i18n="impression">Impression</th><th data-i18n="treatment">Treatment</th><th data-i18n="notes">Notes</th><th data-i18n="admitTo">Admit To</th></tr></thead>
+      <thead><tr><th data-i18n="bed">Bed</th><th data-i18n="zone">Zone</th><th data-i18n="name">Name</th><th data-i18n="ageSex">Age/Sex</th><th data-i18n="chart">Chart #</th><th data-i18n="cc">CC</th><th data-i18n="pmh">PMH</th><th data-i18n="impression">Impression</th><th data-i18n="treatment">Treatment</th><th data-i18n="notes">Notes</th><th data-i18n="admitTo">Admit To</th><th>狀態</th></tr></thead>
       <tbody id="pt-body"></tbody>
     </table>
   </div>
@@ -334,6 +354,52 @@ textarea{resize:vertical;min-height:60px}
   </div>
 </div>
 
+<div class="overlay" id="hm">
+  <div class="modal" style="max-width:580px">
+    <div class="mhead"><div class="mtitle" data-i18n="helpTitle">About / Help</div><button class="mclose" onclick="closeModal('hm')">✕</button></div>
+    <div class="mbody">
+      <div class="help-section">
+        <div style="text-align:center;margin-bottom:16px">
+          <span style="background:var(--accent);color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;padding:6px 16px;border-radius:6px;letter-spacing:2px;display:inline-block">O-ZONE</span>
+          <p style="color:var(--text2);font-size:12px;margin-top:8px" data-i18n="helpDesc">O-Zone ED Observation Ward Patient Tracking System</p>
+          <p class="help-version" style="border:none;padding:4px 0" data-i18n="helpVersion">Version 2.0</p>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3 data-i18n="helpContact">Contact</h3>
+        <div class="help-grid">
+          <div class="help-contact-item">
+            <span class="hc-icon">📧</span>
+            <div><div class="hc-label" data-i18n="helpEmail">Email</div><div class="hc-value"><a href="mailto:036893@tool.caaumed.org.tw" style="color:var(--accent);text-decoration:none">036893@tool.caaumed.org.tw</a></div></div>
+          </div>
+          <div class="help-contact-item">
+            <span class="hc-icon">☎️</span>
+            <div><div class="hc-label" data-i18n="helpPhone">Office Phone</div><div class="hc-value" style="font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:1px">273645</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3 data-i18n="helpInstructions">Instructions</h3>
+        <ul class="help-inst">
+          <li><span class="hi-num">1</span><span data-i18n="helpInst1">Add patients with the + button or import from Excel.</span></li>
+          <li><span class="hi-num">2</span><span data-i18n="helpInst2">Click any patient row to edit details.</span></li>
+          <li><span class="hi-num">3</span><span data-i18n="helpInst3">Use the "Admit" button to mark patients awaiting ward transfer.</span></li>
+          <li><span class="hi-num">4</span><span data-i18n="helpInst4">The quota bar shows current beds and potential beds after admitted patients transfer out.</span></li>
+          <li><span class="hi-num">5</span><span data-i18n="helpInst5">Print handover sheets for shift changes.</span></li>
+          <li><span class="hi-num">6</span><span data-i18n="helpInst6">Data syncs in real-time across devices via cloud.</span></li>
+        </ul>
+      </div>
+      <div class="help-section">
+        <div class="help-qr-wrap">
+          <img id="help-qr-img" src="" alt="QR Code" style="width:160px;height:160px;border-radius:8px;background:#1a2235;display:block;margin:0 auto" onerror="this.style.display='none'">
+          <div class="help-qr-label" data-i18n="helpScanQR">Scan QR code to open on another device</div>
+          <div style="margin-top:6px;font-size:10px;color:var(--text3);word-break:break-all;font-family:'JetBrains Mono',monospace" id="help-url-display"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const FIREBASE_URL = 'https://ozone-ed-default-rtdb.firebaseio.com';
 const QUOTA = {B:8, D:8, E:8};
@@ -390,7 +456,15 @@ const I18N = {
     zoneBorrowRequired:'Zone A / C patients must borrow quota. Please select a zone to borrow from.', cannotBorrowSame:'Cannot borrow quota from the same zone you are in.',
     noQuota:'Zone {zone} has no remaining quota.', saveFailed:'Save failed. Please check network connection.', restoreFailed:'Restore failed. Please check network.', archiveFailed:'Archive failed. Please check network.',
     noDataExport:'No patient data to export.', excelParseFail:'Failed to parse Excel file.', imported:'Successfully imported {count} patients.', archiveMsg:'Archive {name} (Bed {bed})? You can restore them from the History log later.',
-    language:'Language', patientsLabel:'patients', patientLabel:'patient'
+    language:'Language', patientsLabel:'patients', patientLabel:'patient',
+    admitToggle:'Admit', admitReady:'Admitted', admitPending:'Pending transfer',
+    potentialBeds:'avail. after transfers', helpTitle:'About / Help', helpDesc:'O-Zone ED Observation Ward Patient Tracking System',
+    helpContact:'Contact', helpEmail:'Email', helpPhone:'Office Phone', helpScanQR:'Scan QR code to open on another device',
+    helpInstructions:'Instructions', helpInst1:'Add patients with the + button or import from Excel.',
+    helpInst2:'Click any patient row to edit details.', helpInst3:'Use the "Admit" button to mark patients awaiting ward transfer.',
+    helpInst4:'The quota bar shows current beds and potential beds after admitted patients transfer out.',
+    helpInst5:'Print handover sheets for shift changes.', helpInst6:'Data syncs in real-time across devices via cloud.',
+    help:'Help', helpVersion:'Version 2.0'
   },
   zh: {
     appTitle:'急診留觀區', appSubtitle:'病人追蹤系統', history:'歷史', import:'匯入', export:'匯出', print:'列印', addPatient:'新增病人', quota:'額度',
@@ -412,7 +486,15 @@ const I18N = {
     zoneBorrowRequired:'A / C 區病人必須借額度，請選擇借用區域。', cannotBorrowSame:'不能向同一區借額度。',
     noQuota:'{zone} 區額度已滿。', saveFailed:'儲存失敗，請檢查網路。', restoreFailed:'復原失敗，請檢查網路。', archiveFailed:'歸檔失敗，請檢查網路。',
     noDataExport:'目前沒有可匯出的病人資料。', excelParseFail:'Excel 解析失敗。', imported:'成功匯入 {count} 位病人。', archiveMsg:'要歸檔 {name}（床號 {bed}）嗎？之後可在歷史紀錄中復原。',
-    language:'語言', patientsLabel:'位病人', patientLabel:'位病人'
+    language:'語言', patientsLabel:'位病人', patientLabel:'位病人',
+    admitToggle:'住院', admitReady:'待轉送', admitPending:'等待轉送中',
+    potentialBeds:'轉出後可用', helpTitle:'關於 / 說明', helpDesc:'O區急診留觀區病人追蹤系統',
+    helpContact:'聯繫方式', helpEmail:'電子信箱', helpPhone:'公務機', helpScanQR:'掃描 QR Code 在其他裝置開啟',
+    helpInstructions:'使用說明', helpInst1:'按「新增病人」或匯入 Excel 新增病人資料。',
+    helpInst2:'點擊任一病人列可編輯詳細資料。', helpInst3:'按「住院」按鈕標記等待轉送病房的病人。',
+    helpInst4:'額度列顯示目前床位及轉出後可用床位。',
+    helpInst5:'列印交班單供換班使用。', helpInst6:'資料透過雲端即時同步至所有裝置。',
+    help:'說明', helpVersion:'版本 2.0'
   }
 };
 
@@ -561,16 +643,29 @@ function calcQuota(excludeId = null){
 }
 function renderQuota(){
   const q = calcQuota();
+  // Count admitted patients per effective zone
+  const admitCount = {B:0, D:0, E:0, T:0};
+  patients.forEach(p => {
+    if(p.admitReady){
+      const z = p.borrowZone || p.zone;
+      if(admitCount[z] !== undefined) admitCount[z]++;
+      admitCount.T++;
+    }
+  });
   ['B','D','E'].forEach(z => {
     const r = q[z], el = document.getElementById('q' + z);
     el.textContent = r;
     el.className = 'qrem ' + (r >= 5 ? 'ok' : r >= 2 ? 'mid' : 'low');
     document.getElementById('qf' + z).style.width = (r / QUOTA[z] * 100) + '%';
+    const pEl = document.getElementById('qp' + z);
+    pEl.textContent = admitCount[z] > 0 ? `(→${r + admitCount[z]})` : '';
   });
   const tVal = q.T, tel = document.getElementById('qT');
   tel.textContent = tVal;
   tel.className = 'qrem ' + (tVal >= 10 ? 'ok' : tVal >= 5 ? 'mid' : 'low');
   document.getElementById('qfT').style.width = (tVal / 24 * 100) + '%';
+  const pTel = document.getElementById('qpT');
+  pTel.textContent = admitCount.T > 0 ? `(→${tVal + admitCount.T})` : '';
 }
 
 function renderTable(){
@@ -582,10 +677,11 @@ function renderTable(){
   }
   tbody.innerHTML = s.map(p => {
     const br = p.borrowZone ? `<div class="borrow-note">↩${esc(p.borrowZone)}</div>` : '';
-    return `<tr onclick="openEditModal('${esc(p.id)}')">
+    const admitReadyBadge = p.admitReady ? `<span class="admit-ready-badge">${esc(t('admitReady'))}</span>` : '';
+    return `<tr onclick="openEditModal('${esc(p.id)}')" ${p.admitReady ? 'style="background:rgba(168,85,247,.06)"' : ''}>
       <td><span class="bed-tag">${esc(p.bed)}</span></td>
       <td><span class="zbadge ${esc(p.zone)}">${esc(p.zone)}</span>${br}</td>
-      <td><strong>${esc(p.name)}</strong></td>
+      <td><strong>${esc(p.name)}</strong> ${admitReadyBadge}</td>
       <td style="font-family:'JetBrains Mono',monospace">${esc(ageSex(p))}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--text2)">${esc(p.chart || '—')}</td>
       <td class="wc">${esc(p.cc || '—')}</td>
@@ -595,6 +691,7 @@ function renderTable(){
       <td class="wc">${esc(p.notes || '—')}</td>
       <td>${p.admit ? `<span class="admit-badge">${esc(p.admit)}</span>` : '—'}</td>
       <td onclick="event.stopPropagation()"><div style="display:flex;gap:6px">
+        <button class="abtn abtn-admit${p.admitReady ? ' active' : ''}" onclick="toggleAdmitReady('${esc(p.id)}')" title="${esc(t('admitPending'))}">${esc(t('admitToggle'))}</button>
         <button class="abtn abtn-edit" onclick="openEditModal('${esc(p.id)}')">${esc(t('edit'))}</button>
         <button class="abtn abtn-del" onclick="confirmDelete('${esc(p.id)}')">✕</button>
       </div></td>
@@ -611,15 +708,19 @@ function renderGrid(){
   }
   g.innerHTML = s.map(p => {
     const br = p.borrowZone ? `<span class="mpill" style="color:var(--warn)">↩${esc(p.borrowZone)}</span>` : '';
-    return `<div class="bed-card z${esc(p.zone)}" onclick="openEditModal('${esc(p.id)}')">
+    const admitReadyBadge = p.admitReady ? `<span class="admit-ready-badge">${esc(t('admitReady'))}</span>` : '';
+    return `<div class="bed-card z${esc(p.zone)}" onclick="openEditModal('${esc(p.id)}')" ${p.admitReady ? 'style="border-color:rgba(168,85,247,.4);background:rgba(168,85,247,.05)"' : ''}>
       <div class="bc-head"><span class="bed-tag">${currentLang === 'zh' ? `${esc(p.bed)} 床` : `Bed ${esc(p.bed)}`}</span><span class="zbadge ${esc(p.zone)}">${esc(p.zone)}</span></div>
-      <div class="bc-name">${esc(p.name)}</div>
+      <div class="bc-name">${esc(p.name)} ${admitReadyBadge}</div>
       <div class="bc-meta"><span class="mpill">${esc(ageSex(p))}</span>${p.chart ? `<span class="mpill">${esc(p.chart)}</span>` : ''}${br}</div>
       <div class="bc-cc">${p.cc ? esc(p.cc) : `<em style="color:var(--text3)">${esc(t('noCCEntered'))}</em>`}</div>
       ${p.admit ? `<div style="margin-top:8px"><span class="admit-badge">${esc(p.admit)}</span></div>` : ''}
       <div class="bc-foot" onclick="event.stopPropagation()">
-        <button class="abtn abtn-edit" onclick="openEditModal('${esc(p.id)}')">${esc(t('edit'))}</button>
-        <button class="abtn abtn-del" onclick="confirmDelete('${esc(p.id)}')">✕</button>
+        <button class="abtn abtn-admit${p.admitReady ? ' active' : ''}" onclick="toggleAdmitReady('${esc(p.id)}')">${esc(t('admitToggle'))}</button>
+        <div style="display:flex;gap:6px">
+          <button class="abtn abtn-edit" onclick="openEditModal('${esc(p.id)}')">${esc(t('edit'))}</button>
+          <button class="abtn abtn-del" onclick="confirmDelete('${esc(p.id)}')">✕</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -716,6 +817,7 @@ function savePatient(){
     tx: document.getElementById('f-tx').value.trim(),
     notes: document.getElementById('f-notes').value.trim(),
     borrowZone: borrow || null,
+    admitReady: existing?.admitReady || false,
     createdAt: existing?.createdAt || Date.now()
   };
 
@@ -845,7 +947,8 @@ function exportExcel(){
   const data = sorted().map(p => ({
     'Bed': p.bed, 'Zone': p.zone, 'Name': p.name, 'Age': p.age, 'Sex': p.sex,
     'Chart #': p.chart, 'CC': p.cc, 'PMH': p.pmh, 'Impression': p.impression,
-    'Treatment': p.tx, 'Notes': p.notes, 'Admit To': p.admit, 'Borrow Zone': p.borrowZone || ''
+    'Treatment': p.tx, 'Notes': p.notes, 'Admit To': p.admit, 'Borrow Zone': p.borrowZone || '',
+    'Admit Ready': p.admitReady ? 'Y' : ''
   }));
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
@@ -898,6 +1001,7 @@ function processImportedData(rows){
       notes: getVal(['notes','備註','remarks']) || '',
       admit: getVal(['admit to','admit','住院科別','admission']) || '',
       borrowZone: getVal(['borrow zone','借區','borrow']) || null,
+      admitReady: ['y','yes','true','1','是'].includes(getVal(['admit ready','待轉','admitready']).toLowerCase()),
       createdAt: Date.now() + importedCount
     };
     importedCount++;
@@ -926,30 +1030,59 @@ function setView(v){
   document.getElementById('vg').classList.toggle('active', v === 'grid');
 }
 
+function toggleAdmitReady(id){
+  const p = patients.find(x => x.id === id);
+  if(!p) return;
+  p.admitReady = !p.admitReady;
+  if(!fbRef){
+    schedulePersist(); scheduleRender(); return;
+  }
+  rootRef.update({[`ozone_patients/${id}/admitReady`]: p.admitReady}).catch(err => {
+    console.error(err); p.admitReady = !p.admitReady; scheduleRender();
+  });
+  scheduleRender();
+}
+
+function openHelpModal(){
+  openModal('hm');
+  const qrImg = document.getElementById('help-qr-img');
+  if(qrImg && !qrImg.dataset.loaded){
+    const url = encodeURIComponent(window.location.href);
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${url}&bgcolor=1a2235&color=e2e8f0`;
+    qrImg.dataset.loaded = '1';
+  }
+  document.getElementById('help-url-display').textContent = window.location.href;
+}
+
 function printHandover(){
   const s = sorted();
   const now = new Date().toLocaleString(localeCode(), {weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false});
   const q = calcQuota();
-  const cfg = printProfileConfig();
   document.getElementById('pt-title').textContent = t('appPrintTitle');
   document.getElementById('pt-time').textContent = `${t('printed')}: ${now}`;
-  document.getElementById('pt-quota').innerHTML = `
-    <span>B: ${q.B}/8</span>
-    <span>D: ${q.D}/8</span>
-    <span>E: ${q.E}/8</span>
-    <span>${esc(t('total'))}: ${q.T}/24</span>`;
+  document.getElementById('pt-quota').innerHTML = (() => {
+    const ac = {B:0, D:0, E:0, T:0};
+    patients.forEach(p => { if(p.admitReady){ const z = p.borrowZone || p.zone; if(ac[z] !== undefined) ac[z]++; ac.T++; }});
+    const potB = ac.B > 0 ? ` (→${q.B+ac.B})` : '';
+    const potD = ac.D > 0 ? ` (→${q.D+ac.D})` : '';
+    const potE = ac.E > 0 ? ` (→${q.E+ac.E})` : '';
+    const potT = ac.T > 0 ? ` (→${q.T+ac.T})` : '';
+    return `<span>B: ${q.B}/8${potB}</span><span>D: ${q.D}/8${potD}</span><span>E: ${q.E}/8${potE}</span><span>${esc(t('total'))}: ${q.T}/24${potT}</span>`;
+  })();
   document.getElementById('pt-body').innerHTML = s.map(p => `
     <tr>
       <td>${esc(p.bed)}</td>
       <td>${esc(p.zone)}${p.borrowZone ? ` (→${esc(p.borrowZone)})` : ''}</td>
+      <td><strong>${esc(p.name)}</strong></td>
       <td>${esc(ageSex(p))}</td>
       <td>${esc(p.chart || '')}</td>
-      <td>${esc(clipText(p.cc, cfg.limits.cc))}</td>
-      <td>${esc(clipText(p.pmh, cfg.limits.pmh))}</td>
-      <td>${esc(clipText(p.impression, cfg.limits.impression))}</td>
-      <td>${esc(clipText(p.tx, cfg.limits.tx))}</td>
-      <td>${esc(clipText(p.notes, cfg.limits.notes))}</td>
+      <td>${esc(compactText(p.cc))}</td>
+      <td>${esc(compactText(p.pmh))}</td>
+      <td>${esc(compactText(p.impression))}</td>
+      <td>${esc(compactText(p.tx))}</td>
+      <td>${esc(compactText(p.notes))}</td>
       <td>${esc(p.admit || '')}</td>
+      <td>${p.admitReady ? (currentLang === 'zh' ? '★ 待轉' : '★ Admit') : ''}</td>
     </tr>`).join('');
   const pa = document.getElementById('print-area');
   pa.style.display = 'block';
