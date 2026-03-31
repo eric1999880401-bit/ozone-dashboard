@@ -408,7 +408,7 @@ const CACHE_ARCHIVE = 'ozone_archive_v2';
 const CACHE_LANG = 'ozone_lang';
 const CACHE_PRINT = 'ozone_print_v1';
 const ARCHIVE_CACHE_TTL = 60 * 1000;
-const HIDDEN_SUSPEND_MS = 45 * 1000;
+const HIDDEN_SUSPEND_MS = 10 * 60 * 1000;
 
 let patients = lsGet(CACHE_PATIENTS) || [];
 let editingId = null;
@@ -643,6 +643,7 @@ function calcQuota(excludeId = null){
 }
 function renderQuota(){
   const q = calcQuota();
+  // Count admitted patients per effective zone
   const admitCount = {B:0, D:0, E:0, T:0};
   patients.forEach(p => {
     if(p.admitReady){
@@ -708,11 +709,12 @@ function renderGrid(){
   g.innerHTML = s.map(p => {
     const br = p.borrowZone ? `<span class="mpill" style="color:var(--warn)">↩${esc(p.borrowZone)}</span>` : '';
     const admitReadyBadge = p.admitReady ? `<span class="admit-ready-badge">${esc(t('admitReady'))}</span>` : '';
+    const diagnosisText = compactText(p.impression || '');
     return `<div class="bed-card z${esc(p.zone)}" onclick="openEditModal('${esc(p.id)}')" ${p.admitReady ? 'style="border-color:rgba(168,85,247,.4);background:rgba(168,85,247,.05)"' : ''}>
       <div class="bc-head"><span class="bed-tag">${currentLang === 'zh' ? `${esc(p.bed)} 床` : `Bed ${esc(p.bed)}`}</span><span class="zbadge ${esc(p.zone)}">${esc(p.zone)}</span></div>
       <div class="bc-name">${esc(p.name)} ${admitReadyBadge}</div>
       <div class="bc-meta"><span class="mpill">${esc(ageSex(p))}</span>${p.chart ? `<span class="mpill">${esc(p.chart)}</span>` : ''}${br}</div>
-      <div class="bc-cc">${p.cc ? esc(p.cc) : `<em style="color:var(--text3)">${esc(t('noCCEntered'))}</em>`}</div>
+      <div class="bc-cc">${diagnosisText ? esc(diagnosisText) : `<em style="color:var(--text3)">${currentLang === 'zh' ? '尚未輸入診斷' : 'No diagnosis entered'}</em>`}</div>
       ${p.admit ? `<div style="margin-top:8px"><span class="admit-badge">${esc(p.admit)}</span></div>` : ''}
       <div class="bc-foot" onclick="event.stopPropagation()">
         <button class="abtn abtn-admit${p.admitReady ? ' active' : ''}" onclick="toggleAdmitReady('${esc(p.id)}')">${esc(t('admitToggle'))}</button>
@@ -782,7 +784,21 @@ function openEditModal(id){
 function onBedChange(){ document.getElementById('f-bed-custom').style.display = document.getElementById('f-bed').value ? 'none' : ''; }
 function onZoneChange(){ updateBorrowLabel(); }
 
+function refreshPatientsFromSnapshot(snap){
+  const data = snap && typeof snap.val === 'function' ? (snap.val() || {}) : {};
+  patients = Object.values(data);
+  schedulePersist();
+  scheduleRender();
+}
+
+function ensureRealtimeActive(){
+  if(!fbRef) return;
+  clearTimeout(hiddenSuspendTimer);
+  if(connectionSuspended) resumeRealtime();
+}
+
 function savePatient(){
+  ensureRealtimeActive();
   const bedSel = document.getElementById('f-bed').value;
   const bedCustom = document.getElementById('f-bed-custom').value.trim();
   const bed = bedSel || bedCustom;
@@ -820,23 +836,18 @@ function savePatient(){
     createdAt: existing?.createdAt || Date.now()
   };
 
-  // 1. 樂觀更新：立刻關閉新增視窗並刷新畫面
-  closeModal('pm');
-  if(editingId){
-    const idx = patients.findIndex(x => x.id === editingId);
-    if(idx > -1) patients[idx] = p;
-  } else {
-    patients.push(p);
+  if(!fbRef){
+    if(editingId){
+      const idx = patients.findIndex(x => x.id === editingId);
+      if(idx > -1) patients[idx] = p;
+    } else {
+      patients.push(p);
+    }
+    schedulePersist(); scheduleRender(); closeModal('pm'); return;
   }
-  schedulePersist(); 
-  scheduleRender(); 
 
-  // 2. 若有 Firebase 則於背景上傳
-  if(!fbRef) return;
-
-  rootRef.update({[`ozone_patients/${p.id}`]: p}).catch(err => {
-    console.error(err); 
-    setSyncStatus('error');
+  rootRef.update({[`ozone_patients/${p.id}`]: p}).then(() => closeModal('pm')).catch(err => {
+    console.error(err); alert(t('saveFailed')); setSyncStatus('error');
   });
 }
 
@@ -844,29 +855,24 @@ function confirmDelete(id){
   const p = patients.find(x => x.id === id); if(!p) return;
   deleteTargetId = id;
   document.getElementById('cdm-msg').textContent = t('archiveMsg', {name: p.name, bed: p.bed});
-  
   document.getElementById('cdm-ok').onclick = () => {
+    ensureRealtimeActive();
     const archived = Object.assign({}, p, {archivedAt: Date.now()});
-    
-    // 1. 樂觀更新：立刻關閉視窗，並將病人從本地畫面移除
-    closeModal('cdm');
-    patients = patients.filter(x => x.id !== id);
-    schedulePersist();
-    scheduleRender();
-
     if(!fbRef){
       archiveCache.data = [archived, ...(archiveCache.data || []).filter(x => x.id !== id)].slice(0, 100);
       archiveCache.ts = Date.now();
       lsSet(CACHE_ARCHIVE, archiveCache.data);
-      return;
+      patients = patients.filter(x => x.id !== deleteTargetId);
+      schedulePersist(); scheduleRender(); closeModal('cdm'); return;
     }
-
-    // 2. 讓 Firebase 在背景執行同步
     rootRef.update({
       [`ozone_archive/${archived.id}`]: archived,
       [`ozone_patients/${archived.id}`]: null
+    }).then(() => {
+      archiveCache.ts = 0;
+      closeModal('cdm');
     }).catch(err => {
-      console.error('Firebase 同步失敗:', err);
+      console.error(err); alert(t('archiveFailed')); setSyncStatus('error');
     });
   };
   openModal('cdm');
@@ -896,6 +902,7 @@ function renderArchive(arr){
 }
 
 function openArchiveModal(forceRefresh = false){
+  ensureRealtimeActive();
   openModal('am');
   const tbody = document.getElementById('archive-body');
   const loader = document.getElementById('archive-loading');
@@ -926,6 +933,7 @@ function openArchiveModal(forceRefresh = false){
 }
 
 function restorePatient(id){
+  ensureRealtimeActive();
   if(!fbArchiveRef){
     const p = (archiveCache.data || []).find(x => x.id === id);
     if(!p) return;
@@ -951,7 +959,7 @@ function restorePatient(id){
     archiveCache.ts = 0;
     openArchiveModal(true);
   }).catch(err => {
-    console.error(err); alert(t('restoreFailed'));
+    console.error(err); alert(t('restoreFailed')); setSyncStatus('error');
   });
 }
 
@@ -987,6 +995,7 @@ function handleExcelImport(e){
 }
 
 function processImportedData(rows){
+  ensureRealtimeActive();
   let importedCount = 0;
   const updates = {};
   const localAdds = [];
@@ -1044,6 +1053,7 @@ function setView(v){
 }
 
 function toggleAdmitReady(id){
+  ensureRealtimeActive();
   const p = patients.find(x => x.id === id);
   if(!p) return;
   p.admitReady = !p.admitReady;
@@ -1051,7 +1061,7 @@ function toggleAdmitReady(id){
     schedulePersist(); scheduleRender(); return;
   }
   rootRef.update({[`ozone_patients/${id}/admitReady`]: p.admitReady}).catch(err => {
-    console.error(err); p.admitReady = !p.admitReady; scheduleRender();
+    console.error(err); p.admitReady = !p.admitReady; scheduleRender(); setSyncStatus('error');
   });
   scheduleRender();
 }
@@ -1105,40 +1115,21 @@ function printHandover(){
 
 function attachRealtimeListeners(){
   if(!fbRef || listenersAttached) return;
-  firebaseHandlers.added = snap => {
-    const p = snap.val();
-    if(!p) return;
-    const idx = patients.findIndex(x => x.id === p.id);
-    if(idx === -1) patients.push(p); else patients[idx] = p;
-    schedulePersist(); scheduleRender();
-  };
-  firebaseHandlers.changed = snap => {
-    const p = snap.val();
-    if(!p) return;
-    const idx = patients.findIndex(x => x.id === p.id);
-    if(idx > -1) patients[idx] = p; else patients.push(p);
-    schedulePersist(); scheduleRender();
-  };
-  firebaseHandlers.removed = snap => {
-    patients = patients.filter(x => x.id !== snap.key);
-    schedulePersist(); scheduleRender();
+  firebaseHandlers.value = snap => {
+    refreshPatientsFromSnapshot(snap);
   };
   firebaseHandlers.connected = snap => {
     if(connectionSuspended) return;
     setSyncStatus(snap.val() ? 'online' : 'offline');
   };
 
-  fbRef.on('child_added', firebaseHandlers.added);
-  fbRef.on('child_changed', firebaseHandlers.changed);
-  fbRef.on('child_removed', firebaseHandlers.removed);
+  fbRef.on('value', firebaseHandlers.value);
   infoRef.on('value', firebaseHandlers.connected);
   listenersAttached = true;
 }
 function detachRealtimeListeners(){
   if(!fbRef || !listenersAttached) return;
-  fbRef.off('child_added', firebaseHandlers.added);
-  fbRef.off('child_changed', firebaseHandlers.changed);
-  fbRef.off('child_removed', firebaseHandlers.removed);
+  fbRef.off('value', firebaseHandlers.value);
   infoRef.off('value', firebaseHandlers.connected);
   listenersAttached = false;
 }
@@ -1152,6 +1143,7 @@ function initFirebase(){
     fbArchiveRef = db.ref('ozone_archive');
     infoRef = db.ref('.info/connected');
     attachRealtimeListeners();
+    fbRef.once('value').then(refreshPatientsFromSnapshot).catch(err => console.error('Initial sync failed:', err));
     setSyncStatus('connecting');
   } catch(e){
     console.error('Firebase error:', e);
@@ -1174,6 +1166,7 @@ function resumeRealtime(){
   connectionSuspended = false;
   firebase.database().goOnline();
   attachRealtimeListeners();
+  fbRef.once('value').then(refreshPatientsFromSnapshot).catch(err => console.error('Resync failed:', err));
   setSyncStatus('connecting');
 }
 
