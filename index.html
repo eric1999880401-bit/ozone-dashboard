@@ -408,6 +408,8 @@ const CACHE_ARCHIVE = 'ozone_archive_v2';
 const CACHE_LANG = 'ozone_lang';
 const CACHE_PRINT = 'ozone_print_v1';
 const ARCHIVE_CACHE_TTL = 60 * 1000;
+const ARCHIVE_RETENTION_DAYS = 30;
+const ARCHIVE_MAX_ITEMS = 200;
 const HIDDEN_SUSPEND_MS = 10 * 60 * 1000;
 
 let patients = lsGet(CACHE_PATIENTS) || [];
@@ -500,6 +502,42 @@ const I18N = {
 
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}
 function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function archiveCutoffTs(nowTs = Date.now()){ return nowTs - ARCHIVE_RETENTION_DAYS * 24 * 60 * 60 * 1000; }
+function normalizeArchiveItems(arr, nowTs = Date.now()){
+  const cutoff = archiveCutoffTs(nowTs);
+  return (arr || [])
+    .filter(Boolean)
+    .map(x => Object.assign({}, x))
+    .filter(x => (x.archivedAt || 0) >= cutoff)
+    .sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0))
+    .slice(0, ARCHIVE_MAX_ITEMS);
+}
+function setArchiveCacheData(arr){
+  archiveCache = {data: normalizeArchiveItems(arr), ts: Date.now()};
+  lsSet(CACHE_ARCHIVE, archiveCache.data);
+  return archiveCache.data;
+}
+async function cleanupArchiveCloud(){
+  if(!fbArchiveRef) return normalizeArchiveItems(archiveCache.data || []);
+  const snap = await fbArchiveRef.once('value');
+  const data = snap.val() || {};
+  const entries = Object.entries(data).map(([id, item]) => Object.assign({id}, item || {}));
+  const survivors = normalizeArchiveItems(entries);
+  const keepIds = new Set(survivors.map(x => String(x.id)));
+  const cutoff = archiveCutoffTs();
+  const updates = {};
+  let changed = false;
+  entries.forEach(item => {
+    const id = String(item.id || '');
+    if(!id) return;
+    if(!keepIds.has(id) || (item.archivedAt || 0) < cutoff){
+      updates[`ozone_archive/${id}`] = null;
+      changed = true;
+    }
+  });
+  if(changed && rootRef) await rootRef.update(updates);
+  return setArchiveCacheData(survivors);
+}
 function t(key, vars={}){
   let s = (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
   return s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
@@ -859,17 +897,15 @@ function confirmDelete(id){
     ensureRealtimeActive();
     const archived = Object.assign({}, p, {archivedAt: Date.now()});
     if(!fbRef){
-      archiveCache.data = [archived, ...(archiveCache.data || []).filter(x => x.id !== id)].slice(0, 100);
-      archiveCache.ts = Date.now();
-      lsSet(CACHE_ARCHIVE, archiveCache.data);
+      setArchiveCacheData([archived, ...(archiveCache.data || []).filter(x => x.id !== id)]);
       patients = patients.filter(x => x.id !== deleteTargetId);
       schedulePersist(); scheduleRender(); closeModal('cdm'); return;
     }
     rootRef.update({
       [`ozone_archive/${archived.id}`]: archived,
       [`ozone_patients/${archived.id}`]: null
-    }).then(() => {
-      archiveCache.ts = 0;
+    }).then(() => cleanupArchiveCloud())
+    .then(() => {
       closeModal('cdm');
     }).catch(err => {
       console.error(err); alert(t('archiveFailed')); setSyncStatus('error');
@@ -917,14 +953,11 @@ function openArchiveModal(forceRefresh = false){
 
   if(!forceRefresh && archiveCache.data && archiveCache.data.length && Date.now() - archiveCache.ts < ARCHIVE_CACHE_TTL){
     renderArchive([...(archiveCache.data || [])]);
+    cleanupArchiveCloud().then(arr => renderArchive(arr)).catch(() => {});
     return;
   }
 
-  fbArchiveRef.orderByChild('archivedAt').limitToLast(100).once('value').then(snap => {
-    const data = snap.val();
-    const arr = data ? Object.values(data) : [];
-    archiveCache = {data: arr, ts: Date.now()};
-    lsSet(CACHE_ARCHIVE, arr);
+  cleanupArchiveCloud().then(arr => {
     renderArchive(arr);
   }).catch(() => {
     loader.style.display = 'none';
@@ -939,9 +972,7 @@ function restorePatient(id){
     if(!p) return;
     const restored = Object.assign({}, p);
     delete restored.archivedAt;
-    archiveCache.data = (archiveCache.data || []).filter(x => x.id !== id);
-    archiveCache.ts = Date.now();
-    lsSet(CACHE_ARCHIVE, archiveCache.data);
+    setArchiveCacheData((archiveCache.data || []).filter(x => x.id !== id));
     patients.push(restored);
     schedulePersist(); scheduleRender(); openArchiveModal(true); return;
   }
@@ -955,8 +986,8 @@ function restorePatient(id){
       [`ozone_patients/${id}`]: restored,
       [`ozone_archive/${id}`]: null
     });
-  }).then(() => {
-    archiveCache.ts = 0;
+  }).then(() => cleanupArchiveCloud())
+  .then(() => {
     openArchiveModal(true);
   }).catch(err => {
     console.error(err); alert(t('restoreFailed')); setSyncStatus('error');
